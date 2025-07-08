@@ -15,6 +15,7 @@ A research project focused on developing autonomous robotic systems capable of e
 
 - Docker installed on your system
 - Git
+- Rocker (for running Docker containers with GUI support)
 
 ### Getting Started
 
@@ -34,6 +35,12 @@ A research project focused on developing autonomous robotic systems capable of e
 
    ```bash
    docker build -t tiago_tutorials:original .
+   ```
+
+4. **Run the Docker container with rocker:**
+
+   ```bash
+   rocker --nvidia --x11 tiago_tutorials:original
    ```
 
 ## License

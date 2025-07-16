@@ -15,7 +15,11 @@ A research project focused on developing autonomous robotic systems capable of e
 
 - Docker installed on your system
 - Git
-- Rocker (for running Docker containers with GUI support) - Follow the [installation guide](https://github.com/osrf/rocker)
+- Rocker (install via pip):
+
+   ```bash
+   pip install rocker
+   ```
 
 ---
 

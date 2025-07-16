@@ -1,0 +1,182 @@
+# =============================================================================
+# TiAGO ROS Packages Configuration for Autonomous Door Negotiation
+# =============================================================================
+# This file defines the ROS packages needed for TiAGO door negotiation.
+# Unnecessary packages have been commented out to reduce build time.
+# 
+# Essential packages are organized by category:
+# - Perception & Detection
+# - Simulation & Gazebo
+# - Navigation & SLAM  
+# - Robot Control & Hardware
+# - TiAGO Core Packages
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# PERCEPTION & DETECTION PACKAGES
+# -----------------------------------------------------------------------------
+
+# ArUco detection - keep for potential door marker detection
+- git: {local-name: aruco_ros, uri: 'https://github.com/pal-robotics/aruco_ros.git', version: 'noetic-devel'}
+
+# Dynamic reconfigure - keep for parameter tuning
+- git: {local-name: ddynamic_reconfigure_python, uri: 'https://github.com/pal-robotics/ddynamic_reconfigure_python', version: 'master'}
+
+# Humanoid messages - keep for potential future use
+- git: {local-name: humanoid_msgs, uri: 'https://github.com/ahornung/humanoid_msgs.git', version: 'master'}
+
+# -----------------------------------------------------------------------------
+# COMMENTED OUT PERCEPTION PACKAGES (Uncomment if needed)
+# -----------------------------------------------------------------------------
+# Debugging tools - comment out to reduce build time
+# - git: {local-name: backward_ros, uri: 'https://github.com/pal-robotics/backward_ros', version: 'kinetic-devel'}
+
+# Custom end effector - not needed for standard door handles
+# - git: {local-name: custom_end_effector, uri: 'https://github.com/pal-robotics/custom_end_effector.git', version: 'master'}
+
+# Introspection tools - comment out to reduce build time
+# - git: {local-name: dynamic_introspection, uri: 'https://github.com/pal-robotics/dynamic_introspection', version: 'kinetic-devel'}
+
+# Hand description - not needed unless using Hey5 hand specifically
+# - git: {local-name: hey5_description, uri: 'https://github.com/pal-robotics/hey5_description.git', version: 'master'}
+
+# -----------------------------------------------------------------------------
+# SIMULATION & GAZEBO PACKAGES
+# -----------------------------------------------------------------------------
+
+# Gazebo packages - essential for simulation
+- git: {local-name: gazebo_ros_pkgs, uri: 'https://github.com/pal-robotics-forks/gazebo_ros_pkgs.git', version: 'noetic-devel'}
+
+# PAL Gazebo plugins - essential for TiAGO simulation
+- git: {local-name: pal_gazebo_plugins, uri: 'https://github.com/pal-robotics/pal_gazebo_plugins.git', version: 'melodic-devel'}
+
+# Gazebo worlds - essential for simulation environments
+- git: {local-name: pal_gazebo_worlds, uri: 'https://github.com/pal-robotics/pal_gazebo_worlds.git', version: 'kinetic-devel'}
+
+# Hardware interfaces for Gazebo - essential
+- git: {local-name: pal_hardware_gazebo, uri: 'https://github.com/pal-robotics/pal_hardware_gazebo.git', version: 'melodic-devel'}
+
+# Gazebo plugins - essential for simulation
+- git: {local-name: roboticsgroup_gazebo_plugins, uri: 'https://github.com/pal-robotics-forks/roboticsgroup_gazebo_plugins.git', version: 'kinetic-devel'}
+
+# -----------------------------------------------------------------------------
+# NAVIGATION & SLAM PACKAGES
+# -----------------------------------------------------------------------------
+
+# Navigation layers - essential for advanced navigation
+- git: {local-name: navigation_layers, uri: 'https://github.com/DLu/navigation_layers.git', version: 'noetic'}
+
+# SLAM packages - essential for mapping and localization
+- git: {local-name: openslam_gmapping, uri: 'https://github.com/ros-perception/openslam_gmapping.git', version: 'melodic-devel'}
+
+# Navigation configuration - essential for TiAGO navigation
+- git: {local-name: pal_navigation_cfg_public, uri: 'https://github.com/pal-robotics/pal_navigation_cfg_public.git', version: 'master'}
+
+# Navigation state machine - essential for navigation behaviors
+- git: {local-name: pal_navigation_sm, uri: 'https://github.com/pal-robotics/pal_navigation_sm.git', version: 'master'}
+
+# SLAM gmapping - essential for mapping
+- git: {local-name: slam_gmapping, uri: 'https://github.com/ros-perception/slam_gmapping.git', version: 'melodic-devel'}
+
+# TF lookup utilities - keep for coordinate transformations
+- git: {local-name: tf_lookup, uri: 'https://github.com/pal-robotics/tf_lookup.git', version: 'master'}
+
+# -----------------------------------------------------------------------------
+# COMMENTED OUT NAVIGATION PACKAGES (Uncomment if needed)
+# -----------------------------------------------------------------------------
+# Alternative local planner - comment out if using default planners
+# - git: {local-name: eband_local_planner, uri: 'https://github.com/pal-robotics-forks/eband_local_planner.git', version: 'melodic-devel'}
+
+# Omni base packages - comment out if not using omni-directional base
+# - git: {local-name: omni_base_navigation, uri: 'https://github.com/pal-robotics/omni_base_navigation.git', version: 'melodic-devel'}
+# - git: {local-name: omni_base_robot, uri: 'https://github.com/pal-robotics/omni_base_robot.git', version: 'melodic-devel'}
+# - git: {local-name: omni_base_simulation, uri: 'https://github.com/pal-robotics/omni_base_simulation.git', version: 'melodic-devel'}
+
+# PMB2 packages - comment out since TiAGO is the focus, not PMB2
+# - git: {local-name: pmb2_navigation, uri: 'https://github.com/pal-robotics/pmb2_navigation', version: 'kinetic-devel'}
+# - git: {local-name: pmb2_robot, uri: 'https://github.com/pal-robotics/pmb2_robot.git', version: 'kinetic-devel'}
+# - git: {local-name: pmb2_simulation, uri: 'https://github.com/pal-robotics/pmb2_simulation.git', version: 'kinetic-devel'}
+
+# Teleop tools - comment out if not doing manual teleoperation
+- git: {local-name: teleop_tools, uri: 'https://github.com/pal-robotics-forks/teleop_tools.git', version: 'pal-overlay-kinetic-devel'}
+# -----------------------------------------------------------------------------
+# ROBOT CONTROL & HARDWARE PACKAGES
+# -----------------------------------------------------------------------------
+
+# Head control - essential for door detection
+- git: {local-name: head_action, uri: 'https://github.com/pal-robotics/head_action.git', version: 'indigo-devel'}
+
+# Gripper control - essential for door handle manipulation
+- git: {local-name: pal_gripper, uri: 'https://github.com/pal-robotics/pal_gripper.git', version: 'kinetic-devel'}
+
+# Hardware interfaces - essential
+- git: {local-name: pal_hardware_interfaces, uri: 'https://github.com/pal-robotics/pal_hardware_interfaces.git', version: 'indigo-devel'}
+
+# Motion loader - essential for predefined motions
+- git: {local-name: pal_motion_loader, uri: 'https://github.com/pal-robotics/pal_motion_loader.git', version: 'main'}
+
+# PAL messages - essential
+- git: {local-name: pal_msgs, uri: 'https://github.com/pal-robotics/pal_msgs.git', version: 'indigo-devel'}
+
+# PAL Python utilities - keep for convenience
+- git: {local-name: pal_python, uri: 'https://github.com/pal-robotics/pal_python.git', version: 'melodic-devel'}
+
+# URDF utilities - keep for robot model handling
+- git: {local-name: pal_urdf_utils, uri: 'https://github.com/pal-robotics/pal_urdf_utils.git', version: 'master'}
+
+# Play motion - essential for predefined arm movements
+- git: {local-name: play_motion, uri: 'https://github.com/pal-robotics/play_motion.git', version: 'kinetic-devel'}
+
+# Robot pose utilities - keep for pose handling
+- git: {local-name: robot_pose, uri: 'https://github.com/pal-robotics/robot_pose', version: 'kinetic-devel'}
+
+# ROS control packages - essential for robot control
+- git: {local-name: ros_controllers, uri: 'https://github.com/pal-robotics-forks/ros_controllers.git', version: 'kinetic-devel'}
+- git: {local-name: ros_control, uri: 'https://github.com/pal-robotics-forks/ros_control.git', version: 'kinetic-devel'}
+
+# Simple grasping - useful for door handle grasping
+- git: {local-name: simple_grasping_action, uri: 'https://github.com/pal-robotics/simple_grasping_action.git', version: 'master'}
+
+# -----------------------------------------------------------------------------
+# COMMENTED OUT CONTROL PACKAGES (Uncomment if needed)
+# -----------------------------------------------------------------------------
+# Robotiq gripper - comment out if not using Robotiq gripper specifically
+# - git: {local-name: pal_robotiq_gripper, uri: 'https://github.com/pal-robotics/pal_robotiq_gripper.git', version: 'master'}
+
+# Statistics - comment out to reduce build time
+# - git: {local-name: pal_statistics, uri: 'https://github.com/pal-robotics/pal_statistics', version: 'kinetic-devel'}
+
+# WSG gripper - comment out if not using WSG gripper specifically
+# - git: {local-name: pal_wsg_gripper, uri: 'https://github.com/pal-robotics/pal_wsg_gripper', version: 'indigo-devel'}
+
+# RViz covariance plugin - comment out to reduce build time
+# - git: {local-name: rviz_plugin_covariance, uri: 'https://github.com/pal-robotics/rviz_plugin_covariance.git', version: 'kinetic-devel'}
+
+# Simple models - comment out to reduce build time
+# - git: {local-name: simple_models_robot, uri: 'https://github.com/pal-robotics/simple_models_robot.git', version: 'kinetic-devel'}
+
+# -----------------------------------------------------------------------------
+# TIAGO CORE PACKAGES - ALL ESSENTIAL FOR TIAGO OPERATION
+# -----------------------------------------------------------------------------
+
+# Description and calibration - essential for robot model
+- git: {local-name: tiago_description_calibration, uri: 'https://github.com/pal-robotics/tiago_description_calibration.git', version: 'indigo-devel'}
+
+# MoveIt configuration - essential for arm motion planning
+- git: {local-name: tiago_moveit_config, uri: 'https://github.com/pal-robotics/tiago_moveit_config.git', version: 'kinetic-devel'}
+
+# Navigation configuration - essential for autonomous navigation
+- git: {local-name: tiago_navigation, uri: 'https://github.com/pal-robotics/tiago_navigation.git', version: 'kinetic-devel'}
+
+# Robot description and hardware - essential for TiAGO
+- git: {local-name: tiago_robot, uri: 'https://github.com/pal-robotics/tiago_robot.git', version: 'kinetic-devel'}
+
+# Simulation packages - essential for Gazebo simulation
+- git: {local-name: tiago_simulation, uri: 'https://github.com/pal-robotics/tiago_simulation.git', version: 'kinetic-devel'}
+
+# Tutorials - keep for reference and examples
+- git: {local-name: tiago_tutorials, uri: 'https://github.com/pal-robotics/tiago_tutorials.git', version: 'noetic-devel'}
+
+# =============================================================================
+# END OF CONFIGURATION
+# =============================================================================

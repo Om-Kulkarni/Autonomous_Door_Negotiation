@@ -21,7 +21,7 @@ A research project focused on developing autonomous robotic systems capable of e
 
 ## ROS1 Docker Setup
 
-### Getting Started
+### ROS1 Build and Run
 
 1. **Build the Docker image:**
 
@@ -29,28 +29,20 @@ A research project focused on developing autonomous robotic systems capable of e
    docker build -t tiago_adn_ros_noetic -f ROS1_Docker/Dockerfile .
    ```
 
-2. **Run the Docker container with volume mounting (for development):**
-
-   ```bash
-   rocker --nvidia --x11 --volume "$(pwd)/ROS1_Docker/tiago_adn:/tiago_public_ws/src/tiago_adn" -- tiago_adn_ros_noetic
-   ```
-
-   This mounts your local `tiago_adn` folder to the container so any changes made inside the container will persist on your host machine.
-
-3. **Alternative: Run without volume mounting:**
+2. **Run the Docker container:**
 
    ```bash
    rocker --nvidia --x11 -- tiago_adn_ros_noetic
    ```
 
-### Development Workflow
+### ROS1 Development Workflow
 
-When developing inside the container with volume mounting:
+When developing inside the container:
 
 1. **Enter the container:**
 
    ```bash
-   rocker --nvidia --x11 --volume "$(pwd)/ROS1_Docker/tiago_adn:/tiago_public_ws/src/tiago_adn" -- tiago_adn_ros_noetic
+   rocker --nvidia --x11 -- tiago_adn_ros_noetic
    ```
 
 2. **Once inside the container, you can open a terminal application:**
@@ -63,7 +55,7 @@ When developing inside the container with volume mounting:
 
 ## ROS2 Docker Setup
 
-### Getting Started
+### ROS2 Build and Run
 
 1. **Build the Docker image:**
 
@@ -75,14 +67,13 @@ When developing inside the container with volume mounting:
 
    ```bash
    docker run --gpus all -it --rm \
-       -v "$(pwd):/home/om-kulkarni/Projects/Autonomous_Door_Negotiation" \
        -w /tiago_ws \
        tiago_adn_ros2_humble
    ```
 
-   This mounts your project directory into the container and sets the working directory to the ROS2 workspace.
+   This sets the working directory to the ROS2 workspace.
 
-### Development Workflow
+### ROS2 Development Workflow
 
 When developing inside the container:
 
@@ -90,7 +81,6 @@ When developing inside the container:
 
    ```bash
    docker run --gpus all -it --rm \
-       -v "$(pwd):/home/om-kulkarni/Projects/Autonomous_Door_Negotiation" \
        -w /tiago_ws \
        tiago_adn_ros2_humble
    ```

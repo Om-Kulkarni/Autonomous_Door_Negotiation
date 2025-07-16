@@ -32,7 +32,10 @@ A research project focused on developing autonomous robotic systems capable of e
 2. **Run the Docker container:**
 
    ```bash
-   rocker --nvidia --x11 -- tiago_adn_ros_noetic
+   rocker \
+       --nvidia \
+       --x11 \
+       -- tiago_adn_ros_noetic
    ```
 
 ### ROS1 Development Workflow
@@ -42,7 +45,10 @@ When developing inside the container:
 1. **Enter the container:**
 
    ```bash
-   rocker --nvidia --x11 -- tiago_adn_ros_noetic
+   rocker \
+       --nvidia \
+       --x11 \
+       -- tiago_adn_ros_noetic
    ```
 
 2. **Once inside the container, you can open a terminal application:**
@@ -63,15 +69,15 @@ When developing inside the container:
    docker build -t tiago_adn_ros2_humble -f ROS2_Docker/Dockerfile .
    ```
 
-2. **Run the Docker container with GPU support:**
+2. **Run the Docker container:**
 
    ```bash
-   docker run --gpus all -it --rm \
-       -w /tiago_ws \
-       tiago_adn_ros2_humble
+   rocker \
+       --nvidia \
+       --cuda \
+       --x11 \
+       -- tiago_adn_ros2_humble
    ```
-
-   This sets the working directory to the ROS2 workspace.
 
 ### ROS2 Development Workflow
 
@@ -80,9 +86,11 @@ When developing inside the container:
 1. **Enter the container:**
 
    ```bash
-   docker run --gpus all -it --rm \
-       -w /tiago_ws \
-       tiago_adn_ros2_humble
+   rocker \
+       --nvidia \
+       --cuda \
+       --x11 \
+       -- tiago_adn_ros2_humble
    ```
 
 2. **Once inside the container, source the ROS2 workspace:**

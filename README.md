@@ -22,13 +22,13 @@ A research project focused on developing autonomous robotic systems capable of e
 1. **Build the Docker image:**
 
    ```bash
-   docker build -t tiago_adn_ros_noetic -f Docker/Dockerfile .
+   docker build -t tiago_adn_ros_noetic -f ROS1_Docker/Dockerfile .
    ```
 
 2. **Run the Docker container with volume mounting (for development):**
 
    ```bash
-   rocker --nvidia --x11 --volume $(pwd)/tiago_adn:/tiago_public_ws/src/tiago_adn tiago_adn_ros_noetic
+   rocker --nvidia --x11 --volume "$(pwd)/ROS1_Docker/tiago_adn:/tiago_public_ws/src/tiago_adn" -- tiago_adn_ros_noetic
    ```
 
    This mounts your local `tiago_adn` folder to the container so any changes made inside the container will persist on your host machine.
@@ -36,7 +36,7 @@ A research project focused on developing autonomous robotic systems capable of e
 3. **Alternative: Run without volume mounting:**
 
    ```bash
-   rocker --nvidia --x11 tiago_adn_ros_noetic
+   rocker --nvidia --x11 -- tiago_adn_ros_noetic
    ```
 
 ### Development Workflow
@@ -46,8 +46,16 @@ When developing inside the container with volume mounting:
 1. **Enter the container:**
 
    ```bash
-   rocker --nvidia --x11 --volume $(pwd)/tiago_adn:/tiago_public_ws/src/tiago_adn tiago_adn_ros_noetic
+   rocker --nvidia --x11 --volume "$(pwd)/ROS1_Docker/tiago_adn:/tiago_public_ws/src/tiago_adn" -- tiago_adn_ros_noetic
    ```
+
+2. **Once inside the container, you can open a terminal application:**
+
+   ```bash
+   terminator -u
+   ```
+
+   This opens the Terminator terminal emulator with UTF-8 support for better terminal experience.
 
 ## License
 

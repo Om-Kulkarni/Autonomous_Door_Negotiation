@@ -48,12 +48,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-catkin-tools \
     ros-noetic-actionlib-tools \
     ros-noetic-moveit-commander \
-  && rm -rf /var/lib/apt/lists/* \
-  && wget https://raw.githubusercontent.com/pal-robotics/tiago_tutorials/noetic-devel/tiago_public-noetic.rosinstall \
-  && vcs import src < tiago_public-noetic.rosinstall
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy and use the local rosinstall file
+COPY ROS1_Docker/tiago_public-noetic.rosinstall ./tiago_public-noetic.rosinstall
+RUN vcs import src < tiago_public-noetic.rosinstall
 
 # Copy the tiago_adn package into the workspace
-COPY tiago_adn $REPO_WS/src/tiago_adn
+COPY ROS1_Docker/tiago_adn $REPO_WS/src/tiago_adn
 
 
 ARG ROSDEP_IGNORE="urdf_test omni_drive_controller orocos_kdl pal_filters libgazebo9-dev pal_usb_utils speed_limit_node camera_calibration_files pal_moveit_plugins pal_startup_msgs pal_local_joint_control pal_pcl_points_throttle_and_filter current_limit_controller hokuyo_node dynamixel_cpp pal_moveit_capabilities pal_pcl dynamic_footprint gravity_compensation_controller pal-orbbec-openni2 pal_loc_measure pal_map_manager ydlidar_ros_driver"

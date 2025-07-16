@@ -63,13 +63,13 @@ RUN bash -c "source /opt/ros/humble/setup.bash \
     && colcon build --symlink-install \
     && echo 'source $REPO_WS/install/setup.bash' >> ~/.bashrc"
 
-# # Add NVIDIA's package repository
-# RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-repo-ubuntu2004_12.8.0-1_amd64.deb && \
-#     dpkg -i cuda-repo-ubuntu2004_12.8.0-1_amd64.deb && \
-#     apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub && \
-#     apt-get update && apt-get install -y cuda-toolkit-12-8
+# Add NVIDIA's package repository and install CUDA Toolkit 12.9
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb && \
+    dpkg -i cuda-keyring_1.1-1_all.deb && \
+    apt-get update && \
+    apt-get -y install cuda-toolkit-12-9
 
-# # Verify installation
-# RUN nvcc --version
+# Verify installation
+RUN nvcc --version
 
 ENTRYPOINT ["bash"]

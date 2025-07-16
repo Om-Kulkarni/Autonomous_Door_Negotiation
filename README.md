@@ -17,6 +17,10 @@ A research project focused on developing autonomous robotic systems capable of e
 - Git
 - Rocker (for running Docker containers with GUI support) - Follow the [installation guide](https://github.com/osrf/rocker)
 
+---
+
+## ROS1 Docker Setup
+
 ### Getting Started
 
 1. **Build the Docker image:**
@@ -55,7 +59,49 @@ When developing inside the container with volume mounting:
    terminator -u
    ```
 
-   This opens the Terminator terminal emulator with UTF-8 support for better terminal experience.
+---
+
+## ROS2 Docker Setup
+
+### Getting Started
+
+1. **Build the Docker image:**
+
+   ```bash
+   docker build -t tiago_adn_ros2_humble -f ROS2_Docker/Dockerfile .
+   ```
+
+2. **Run the Docker container with GPU support:**
+
+   ```bash
+   docker run --gpus all -it --rm \
+       -v "$(pwd):/home/om-kulkarni/Projects/Autonomous_Door_Negotiation" \
+       -w /tiago_ws \
+       tiago_adn_ros2_humble
+   ```
+
+   This mounts your project directory into the container and sets the working directory to the ROS2 workspace.
+
+### Development Workflow
+
+When developing inside the container:
+
+1. **Enter the container:**
+
+   ```bash
+   docker run --gpus all -it --rm \
+       -v "$(pwd):/home/om-kulkarni/Projects/Autonomous_Door_Negotiation" \
+       -w /tiago_ws \
+       tiago_adn_ros2_humble
+   ```
+
+2. **Once inside the container, source the ROS2 workspace:**
+
+   ```bash
+   source /tiago_ws/install/setup.bash
+   ```
+
+---
 
 ## License
 

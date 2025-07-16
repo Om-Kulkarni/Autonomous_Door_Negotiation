@@ -15,32 +15,38 @@ A research project focused on developing autonomous robotic systems capable of e
 
 - Docker installed on your system
 - Git
-- Rocker (for running Docker containers with GUI support)
+- Rocker (for running Docker containers with GUI support) - Follow the [installation guide](https://github.com/osrf/rocker)
 
 ### Getting Started
 
-1. **Clone the TiaGO tutorials repository:**
+1. **Build the Docker image:**
 
    ```bash
-   git clone https://github.com/pal-robotics/tiago_tutorials.git
+   docker build -t tiago_adn_ros_noetic -f Docker/Dockerfile .
    ```
 
-2. **Navigate to the tiago_tutorials directory:**
+2. **Run the Docker container with volume mounting (for development):**
 
    ```bash
-   cd tiago_tutorials
+   rocker --nvidia --x11 --volume $(pwd)/tiago_adn:/tiago_public_ws/src/tiago_adn tiago_adn_ros_noetic
    ```
 
-3. **Build the Docker image:**
+   This mounts your local `tiago_adn` folder to the container so any changes made inside the container will persist on your host machine.
+
+3. **Alternative: Run without volume mounting:**
 
    ```bash
-   docker build -t tiago_tutorials:original .
+   rocker --nvidia --x11 tiago_adn_ros_noetic
    ```
 
-4. **Run the Docker container with rocker:**
+### Development Workflow
+
+When developing inside the container with volume mounting:
+
+1. **Enter the container:**
 
    ```bash
-   rocker --nvidia --x11 tiago_tutorials:original
+   rocker --nvidia --x11 --volume $(pwd)/tiago_adn:/tiago_public_ws/src/tiago_adn tiago_adn_ros_noetic
    ```
 
 ## License

@@ -30,7 +30,7 @@ A research project focused on developing autonomous robotic systems capable of e
 1. **Build the Docker image:**
 
    ```bash
-   docker build -t tiago_adn_ros_noetic -f ROS1_Docker/Dockerfile .
+   docker build -t tiago_adn_ros_noetic -f ROS1_Docker/Dockerfile ./ROS1_Docker
    ```
 
 2. **Run the Docker container:**
@@ -70,7 +70,7 @@ When developing inside the container:
 1. **Build the Docker image:**
 
    ```bash
-   docker build -t tiago_adn_ros2_humble -f ROS2_Docker/Dockerfile .
+   docker build -t tiago_adn_ros2_humble -f ROS2_Docker/Dockerfile ./ROS2_Docker
    ```
 
 2. **Run the Docker container:**

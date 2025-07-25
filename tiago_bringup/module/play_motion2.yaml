@@ -1,0 +1,6 @@
+play_motion2:
+  launch: "tiago_bringup tiago_play_motion2.launch.py
+           arm_type:=@arm_type@
+           base_type:=@base_type@
+           end_effector:=@end_effector@
+           ft_sensor:=@ft_sensor@"

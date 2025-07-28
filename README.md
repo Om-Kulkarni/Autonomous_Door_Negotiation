@@ -105,6 +105,32 @@ When developing inside the container:
 
 ---
 
+
+
+## Connecting to the Robot
+
+To interact with the robot, follow these steps:
+
+### 1. Connect to the Robot's WiFi
+
+- Join the `tiago-0c` WiFi access point.
+
+### 2. Access the Web Interface (webCommander)
+
+- Open your browser and navigate to: [http://10.68.0.128:8080](http://10.68.0.128:8080)
+
+### 3. SSH into the Robot
+
+Use the following command to connect via SSH:
+
+```bash
+ssh -oHostKeyAlgorithms=+ssh-rsa root@10.68.0.1
+```
+
+> **Note:** The `-oHostKeyAlgorithms=+ssh-rsa` option is required for compatibility with the robot's SSH server.
+
+
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

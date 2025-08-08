@@ -117,7 +117,7 @@ To interact with the robot, follow these steps:
 
 ### 2. Access the Web Interface (webCommander)
 
-- Open your browser and navigate to: [http://10.68.0.128:8080](http://10.68.0.128:8080)
+- Open your browser and navigate to: [http://10.68.0.1:8080/](http://10.68.0.1:8080/)
 
 ### 3. SSH into the Robot
 

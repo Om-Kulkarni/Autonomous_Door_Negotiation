@@ -24,6 +24,8 @@ class Server:
       c.send('Thanks for connecting'.encode()) 
       c.close()
 
+
+
 if __name__ == '__main__':
     server = Server(51003)
     server.start_stream()

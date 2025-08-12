@@ -1,6 +1,22 @@
 # Autonomous Door Negotiation
 
-A research project focused on developing autonomous robotic systems capable of effectively negotiating doors in various real-world environments. This project explores the challenges and solutions in door detection, handle manipulation, and successful door traversal for mobile robots.
+A research project focused on developing autonomous robotic systems capable of negotiating doors in real-world environments. This project explores challenges and solutions in door detection, handle manipulation, and successful door traversal for mobile robots.
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Setup and Installation](#setup-and-installation)
+  - [Prerequisites](#prerequisites)
+  - [ROS1 Docker Setup](#ros1-docker-setup)
+  - [ROS2 Docker Setup](#ros2-docker-setup)
+- [Connecting to the Robot](#connecting-to-the-robot)
+- [Control Topics & Examples](#control-topics--examples)
+- [License](#license)
+- [References](#references)
+
+---
 
 ## Overview
 
@@ -9,115 +25,179 @@ A research project focused on developing autonomous robotic systems capable of e
 - Autonomous navigation through doorways
 - Safety considerations for robot-door interaction
 
+---
+
 ## Setup and Installation
 
 ### Prerequisites
 
-- Docker installed on your system
+- Docker
 - Git
-- Rocker (install via pip):
-
-   ```bash
-   pip install rocker
-   ```
+- Rocker (`pip install rocker`)
 
 ---
 
-## ROS1 Docker Setup
+### ROS1 Docker Setup
 
-### ROS1 Build and Run
-
-1. **Build the Docker image:**
-
-   ```bash
-   docker build -t tiago_adn_ros_noetic -f ROS1_Docker/Dockerfile ./ROS1_Docker
-   ```
-
-2. **Run the Docker container:**
-
-   ```bash
-   rocker \
-       --nvidia \
-       --x11 \
-       -- tiago_adn_ros_noetic
-   ```
-
-### ROS1 Development Workflow
-
-When developing inside the container:
-
-1. **Enter the container:**
-
-   ```bash
-   rocker \
-       --nvidia \
-       --x11 \
-       -- tiago_adn_ros_noetic
-   ```
-
-2. **Once inside the container, you can open a terminal application:**
-
-   ```bash
-   terminator -u
-   ```
+**Build:**
+```bash
+docker build -t tiago_adn_ros_noetic -f ROS1_Docker/Dockerfile ./ROS1_Docker
+```
+**Run:**
+```bash
+rocker --nvidia --x11 -- tiago_adn_ros_noetic
+```
 
 ---
 
-## ROS2 Docker Setup
+### ROS2 Docker Setup
 
-### ROS2 Build and Run
-
-1. **Build the Docker image:**
-
-   ```bash
-   docker build -t tiago_adn_ros2_humble -f ROS2_Docker/Dockerfile ./ROS2_Docker
-   ```
-
-2. **Run the Docker container:**
-
-   ```bash
-   rocker \
-       --nvidia \
-       --cuda \
-       --x11 \
-       -- tiago_adn_ros2_humble
-   ```
-
-### ROS2 Development Workflow
-
-When developing inside the container:
-
-1. **Enter the container:**
-
-   ```bash
-   rocker \
-       --nvidia \
-       --cuda \
-       --x11 \
-       -- tiago_adn_ros2_humble
-   ```
-
-2. **Once inside the container, source the ROS2 workspace:**
-
-   ```bash
-   source /tiago_ws/install/setup.bash
-   ```
+**Build:**
+```bash
+docker build -t tiago_adn_ros2_humble -f ROS2_Docker/Dockerfile ./ROS2_Docker
+```
+**Run:**
+```bash
+rocker --nvidia --cuda --x11 -- tiago_adn_ros2_humble
+```
+**Source workspace:**
+```bash
+source /tiago_ws/install/setup.bash
+```
 
 ---
-
-
 
 ## Connecting to the Robot
 
-To interact with the robot, follow these steps:
+1. **Connect to WiFi:** Join `tiago-0c`.
+2. **Web Interface:** [http://10.68.0.1:8080/](http://10.68.0.1:8080/)
+3. **SSH:**  
+   ```bash
+   ssh -oHostKeyAlgorithms=+ssh-rsa root@10.68.0.1
+   ```
+   > *Note: The `-oHostKeyAlgorithms=+ssh-rsa` option is required for compatibility.*
 
-### 1. Connect to the Robot's WiFi
+---
 
-- Join the `tiago-0c` WiFi access point.
+## Control Topics & Examples
 
-### 2. Access the Web Interface (webCommander)
+### Arm Control
+![Joint Limit](Images/jointlimits.png)
+```bash
+rostopic pub /arm_controller/command trajectory_msgs/JointTrajectory "header:
+  seq: 26
+  stamp:
+    secs: 0
+    nsecs: 0
+  frame_id: ''
+joint_names:
+  - 'arm_1_joint'
+  - 'arm_2_joint'
+  - 'arm_3_joint'
+  - 'arm_4_joint'
+  - 'arm_5_joint'
+  - 'arm_6_joint'
+  - 'arm_7_joint'
+points:
+- positions: [1, -0.7457, -2.9648, 1.7901, -2.0943, -0.5314, -0.1771]
+  velocities: []
+  accelerations: []
+  effort: []
+  time_from_start:
+    secs: 1
+    nsecs: 8481387"
+```
 
-- Open your browser and navigate to: [http://10.68.0.1:8080/](http://10.68.0.1:8080/)
+### Torso Control
+```bash
+rostopic pub /torso_controller/command trajectory_msgs/JointTrajectory "header:
+  seq: 26
+  stamp:
+    secs: 0
+    nsecs: 0
+  frame_id: ''
+joint_names:
+  - 'torso_lift_joint'
+points:
+- positions: [0.1]
+  velocities: []
+  accelerations: []
+  effort: []
+  time_from_start:
+    secs: 1
+    nsecs: 1"
+```
+
+### Head Control
+```bash
+rostopic pub /head_controller/command trajectory_msgs/JointTrajectory "header:
+  seq: 0 
+  stamp:
+    secs: 0
+    nsecs: 0
+  frame_id: ''
+joint_names:
+  - 'head_1_joint'
+  - 'head_2_joint'
+points:          
+- positions: [1.0,-0.6]
+  velocities: []
+  accelerations: []
+  effort: []
+  time_from_start:
+    secs: 1
+    nsecs: 8481387"
+```
+
+### Gripper Control
+- **Max:** `[0.053, 0.052]`
+- **Min:** `[-0.008, -0.008]`
+```bash
+rostopic pub /gripper_controller/command trajectory_msgs/JointTrajectory "header:
+  seq: 0
+  stamp:
+    secs: 0
+    nsecs: 0
+  frame_id: ''
+joint_names:
+  - 'gripper_right_finger_joint'
+  - 'gripper_left_finger_joint'
+points:
+- positions: [0.05,0.05]
+  velocities: []
+  accelerations: []
+  effort: []
+  time_from_start:
+    secs: 1
+    nsecs: 8481387"
+```
+
+### Base Control
+- **Rotate Z:** `angular.z: -0.3` or `0.3`
+- **Move Forward/Backward:** `linear.x: 0.2` or `-0.2`
+```bash
+rostopic pub -r 15 /mobile_base_controller/cmd_vel geometry_msgs/Twist "linear:
+  x: 0.0
+  y: 0.0
+  z: 0.0
+angular:
+  x: 0.0
+  y: 0.0
+  z: -0.3" 
+```
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE).
+
+---
+
+## References
+
+- [Rulebook & Papers](Papers/Rulebook/)
+- [Images](Images/)
 
 ### 3. SSH into the Robot
 

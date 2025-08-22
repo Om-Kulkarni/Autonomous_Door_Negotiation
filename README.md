@@ -358,3 +358,12 @@ angular:
   z: -0.3" 
 ```
 
+/home/pal/tiago_adn_ws/src/tiago_moveit_tutorial/src
+rosrun tiago_moveit_tutorials 
+
+Coordinate limits wrt base_footprint
+x > 0.2
+- < y < +
+z > 0.1
+
+gpt_socket_ik2.py

@@ -367,3 +367,12 @@ x > 0.2
 z > 0.1
 
 gpt_socket_ik2.py
+
+
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+export __NV_PRIME_RENDER_OFFLOAD=1
+
+
+tiago_ik_prahalad.py is the joystick control
+tiago_ik_working.py is pranav's simulationsetup
+tiago_fk.py and tiago_pytbullet.py are hopefully the same but one of the is surely fk

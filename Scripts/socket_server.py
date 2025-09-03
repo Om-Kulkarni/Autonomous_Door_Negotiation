@@ -8,6 +8,7 @@ import socket
 import pickle
 import rospy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+from geometry_msgs.msg import Twist
 
 # Socket configuration
 HOST = '0.0.0.0'  # Listen on all interfaces
@@ -46,11 +47,19 @@ def send_arm_command(arm_positions, arm_pub):
     arm_pub.publish(traj)
     rospy.loginfo("Published arm joint positions: {}".format(arm_positions))
 
+def send_base_command(lin_vel_x, ang_vel_z, base_pub):
+    """Creates and publishes a Twist message to control the mobile base."""
+    twist_msg = Twist()
+    twist_msg.linear.x = lin_vel_x
+    twist_msg.angular.z = ang_vel_z
+    base_pub.publish(twist_msg)
+
 def main():
     rospy.init_node('socket_server', anonymous=True)
 
     torso_pub = rospy.Publisher('/torso_controller/command', JointTrajectory, queue_size=10)
     arm_pub = rospy.Publisher('/arm_controller/command', JointTrajectory, queue_size=10)
+    base_pub = rospy.Publisher('/mobile_base_controller/cmd_vel', Twist, queue_size=10)
 
     # Publish default start positions once at launch
     rospy.sleep(1.0)  # Wait for publishers to register
@@ -83,15 +92,18 @@ def main():
 
                             try:
                                 joint_command = pickle.loads(data)
-                                if not isinstance(joint_command, (list, tuple)) or len(joint_command) != 8:
+                                if not isinstance(joint_command, (list, tuple)) or len(joint_command) != 10:
                                     rospy.logwarn("Received invalid joint command format: %s", joint_command)
                                     continue
 
                                 torso_pos = joint_command[0]
-                                arm_positions = joint_command[1:]
+                                arm_positions = joint_command[1:8] # Takes joints 1 through 7
+                                lin_vel_x = joint_command[8]
+                                ang_vel_z = joint_command[9]
 
                                 send_torso_command(torso_pos, torso_pub)
                                 send_arm_command(arm_positions, arm_pub)
+                                send_base_command(lin_vel_x, ang_vel_z, base_pub)
 
                             except (pickle.UnpicklingError, ValueError) as e:
                                 rospy.logwarn("Failed to parse joint command: {}".format(e))
@@ -108,6 +120,10 @@ def main():
                     rospy.logerr("Error handling connection: {}".format(e))
                 finally:
                     try:
+                        # Stops robot when connection closes
+                        rospy.loginfo("Client disconnected. Stopping base movement.")
+                        send_base_command(0.0, 0.0, base_pub)
+                        
                         conn.close()
                         rospy.loginfo("Connection closed")
                     except Exception:

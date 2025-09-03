@@ -35,6 +35,7 @@ INITIAL_POSITIONS = {
 # Socket config (match real robot IP and port)
 SERVER_IP = "10.68.0.1"  # Replace with robot IP
 SERVER_PORT = 65432
+USE_REAL_ROBOT = False
 
 def send_joint_command(torso, arm_joints):
     """
@@ -42,6 +43,9 @@ def send_joint_command(torso, arm_joints):
     @param torso: float, torso lift height
     @param arm_joints: list of 7 floats
     """
+    if not USE_REAL_ROBOT:
+        return  # Skip socket communication
+
     message = [torso] + arm_joints
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -169,10 +173,6 @@ def main():
                     arm_joint_positions.append(ik_solution[ik_idx])
                 else:
                     arm_joint_positions.append(0.0)  # fallback
-
-            print(f"IK solution length: {len(ik_solution)}")
-            print(f"Torso position: {torso}")
-            print(f"Arm joint positions: {arm_joint_positions}")
 
             if len(arm_joint_positions) != 7:
                 print("⚠️ IK output does not contain all arm joints.")

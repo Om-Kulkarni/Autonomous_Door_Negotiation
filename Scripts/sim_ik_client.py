@@ -20,16 +20,16 @@ import pickle
 TORSO_INDEX = 21
 ARM_INDICES = [31, 32, 33, 34, 35, 36, 37]  # arm_1 to arm_7 joints
 
-# Define default start positions for torso and arm (from image)
-DEFAULT_POSITIONS = {
-    21: 0.1372,  # torso_lift_joint
-    31: -0.3571,  # arm_1_joint
-    32: -0.6874,  # arm_2_joint
-    33: 0.5230,   # arm_3_joint
-    34: 0.6508,   # arm_4_joint
-    35: -0.8439,  # arm_5_joint
-    36: 0.5752,   # arm_6_joint
-    37: 0.0       # arm_7_joint
+# Set initial joint positions to match default positions
+INITIAL_POSITIONS = {
+    21: 0.30,    # torso_lift_joint
+    31: 1.61,    # arm_1_joint
+    32: -0.93,   # arm_2_joint
+    33: -3.14,   # arm_3_joint
+    34: 1.83,    # arm_4_joint
+    35: -1.58,   # arm_5_joint
+    36: -0.62,   # arm_6_joint
+    37: -1.58    # arm_7_joint
 }
 
 # Socket config (match real robot IP and port)
@@ -71,9 +71,10 @@ def main():
         m = p.getDynamicsInfo(robotId, link_id)[0]
         p.changeDynamics(robotId, link_id, mass=m * 5.0)
 
-    # 4. Set initial joint positions (torso + arm)
-    for joint_id, pos in DEFAULT_POSITIONS.items():
+    for joint_id, pos in INITIAL_POSITIONS.items():
         p.resetJointState(robotId, joint_id, pos)
+
+    print("✅ Set initial joint positions")
 
     # 5. Get joint information and create mappings
     numJoints = p.getNumJoints(robotId)
@@ -114,16 +115,24 @@ def main():
     print(f"✅ Torso IK index: {torso_ik_index}")
     print(f"✅ Arm IK indices: {arm_ik_indices}")
 
-    # 6. Create GUI sliders
-    sliders = {
-        'x': p.addUserDebugParameter("X", -1.0, 1.0, 0.5),
-        'y': p.addUserDebugParameter("Y", -1.0, 1.0, -0.6),
-        'z': p.addUserDebugParameter("Z", 0.2, 1.2, 1.0),
-        'roll': p.addUserDebugParameter("Roll", -3.14, 3.14, 0.0),
-        'pitch': p.addUserDebugParameter("Pitch", -3.14, 3.14, 0.0),
-        'yaw': p.addUserDebugParameter("Yaw", -3.14, 3.14, 0.0),
-    }
+    # Calculate the actual end-effector pose from initial joint positions
+    ee_state = p.getLinkState(robotId, ee_link_index)
+    initial_ee_pos = ee_state[0]
+    initial_ee_orn = ee_state[1]
+    initial_euler = p.getEulerFromQuaternion(initial_ee_orn)
 
+    print(f"Initial EE position: {initial_ee_pos}")
+    print(f"Initial EE orientation (euler): {initial_euler}")
+
+    # Create sliders with the actual initial end-effector pose
+    sliders = {
+        'x': p.addUserDebugParameter("X", -1.0, 1.0, initial_ee_pos[0]),
+        'y': p.addUserDebugParameter("Y", -1.0, 1.0, initial_ee_pos[1]),
+        'z': p.addUserDebugParameter("Z", 0.2, 1.2, initial_ee_pos[2]),
+        'roll': p.addUserDebugParameter("Roll", -3.14, 3.14, initial_euler[0]),
+        'pitch': p.addUserDebugParameter("Pitch", -3.14, 3.14, initial_euler[1]),
+        'yaw': p.addUserDebugParameter("Yaw", -3.14, 3.14, initial_euler[2]),
+    }
     print("✅ Sliders ready")
 
     marker_id = None

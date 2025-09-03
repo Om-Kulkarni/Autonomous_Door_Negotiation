@@ -37,16 +37,19 @@ SERVER_IP = "10.68.0.1"  # Replace with robot IP
 SERVER_PORT = 65432
 USE_REAL_ROBOT = False
 
-def send_joint_command(torso, arm_joints):
+def send_joint_command(torso, arm_joints,  lin_vel_x, ang_vel_z):
     """
     @brief Sends torso + arm joint commands to the robot over TCP socket.
     @param torso: float, torso lift height
     @param arm_joints: list of 7 floats
+    @param lin_vel_x: float, base linear velocity in x
+    @param ang_vel_z: float, base angular velocity around z
     """
     if not USE_REAL_ROBOT:
         return  # Skip socket communication
 
-    message = [torso] + arm_joints
+    message = [torso] + arm_joints + [lin_vel_x, ang_vel_z]
+
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((SERVER_IP, SERVER_PORT))
@@ -136,6 +139,8 @@ def main():
         'roll': p.addUserDebugParameter("Roll", -3.14, 3.14, initial_euler[0]),
         'pitch': p.addUserDebugParameter("Pitch", -3.14, 3.14, initial_euler[1]),
         'yaw': p.addUserDebugParameter("Yaw", -3.14, 3.14, initial_euler[2]),
+        'lin_vel_x': p.addUserDebugParameter("Base Lin Vel X", -0.2, 0.2, 0.0),
+        'ang_vel_z': p.addUserDebugParameter("Base Ang Vel Z", -0.3, 0.3, 0.0),
     }
     print("✅ Sliders ready")
 
@@ -150,6 +155,10 @@ def main():
             r = p.readUserDebugParameter(sliders['roll'])
             p_ = p.readUserDebugParameter(sliders['pitch'])
             y_ = p.readUserDebugParameter(sliders['yaw'])
+
+            # Read base velocity sliders
+            lin_vel_x = p.readUserDebugParameter(sliders['lin_vel_x'])
+            ang_vel_z = p.readUserDebugParameter(sliders['ang_vel_z'])
 
             pos = [tx, ty, tz]
             orn = p.getQuaternionFromEuler([r, p_, y_])
@@ -186,7 +195,7 @@ def main():
                 p.setJointMotorControl2(robotId, joint_id, p.POSITION_CONTROL, arm_joint_positions[i], force=1000)
 
             # 11. Send to real robot
-            send_joint_command(torso, arm_joint_positions)
+            send_joint_command(torso, arm_joint_positions, lin_vel_x, ang_vel_z)
 
             # 12. Visual debug marker
             if marker_id is not None:

@@ -376,3 +376,10 @@ export __NV_PRIME_RENDER_OFFLOAD=1
 tiago_ik_prahalad.py is the joystick control
 tiago_ik_working.py is pranav's simulationsetup
 tiago_fk.py and tiago_pytbullet.py are hopefully the same but one of the is surely fk
+
+
+
+# Om's Code for Sim to real teleoperation
+sim_ik_client.py: The simulation and client side code that updates the simulation and the sends the joint state
+to the real robot
+socket_server.py: The server side code which uses rostopic lists to send joint commands to the real robot

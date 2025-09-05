@@ -48,7 +48,7 @@ BUTTON_CROSS = 0
 # Socket config (match real robot IP and port)
 SERVER_IP = "10.68.0.1"  # Replace with robot IP
 SERVER_PORT = 65432
-USE_REAL_ROBOT = False
+USE_REAL_ROBOT = True
 
 def send_joint_command(torso, arm_joints,  lin_vel_x, ang_vel_z):
     """
@@ -71,18 +71,6 @@ def send_joint_command(torso, arm_joints,  lin_vel_x, ang_vel_z):
         print(f"⚠️ Socket send failed: {e}")
 
 def main():
-    # Initialize Pygame and the joystick
-    pygame.init()
-    pygame.joystick.init()
-    if pygame.joystick.get_count() > 0:
-        joystick = pygame.joystick.Joystick(0)
-        joystick.init()
-        print(f"✅ Joystick found: {joystick.get_name()}")
-    else:
-        print("⚠️ No joystick found. Base velocities will be zero.")
-        joystick = None
-
-
     # 1. Connect to PyBullet
     physicsClient = p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -97,6 +85,17 @@ def main():
 
     robotId = p.loadURDF(urdf_path, [0, 0, 0.1], p.getQuaternionFromEuler([0, 0, 0]), useFixedBase=True)
     print("✅ Tiago loaded")
+
+        # Initialize Pygame and the joystick
+    pygame.init()
+    pygame.joystick.init()
+    if pygame.joystick.get_count() > 0:
+        joystick = pygame.joystick.Joystick(0)
+        joystick.init()
+        print(f"✅ Joystick found: {joystick.get_name()}")
+    else:
+        print("⚠️ No joystick found. Base velocities will be zero.")
+        joystick = None
 
     # 3. Increase mass for stability
     for link_id in range(-1, p.getNumJoints(robotId)):

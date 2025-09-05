@@ -119,7 +119,7 @@ def main():
         name = info[1].decode('utf-8')
         jointType = info[2]
 
-        if name == "gripper_left_finger_joint":
+        if name == "arm_tool_joint":
             ee_link_index = i
             print(f"Found end-effector: '{name}' at index {i}")
 

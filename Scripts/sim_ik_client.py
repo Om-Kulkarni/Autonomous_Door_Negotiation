@@ -50,9 +50,10 @@ SERVER_IP = "10.68.0.1"  # Replace with robot IP
 SERVER_PORT = 65432
 USE_REAL_ROBOT = True
 
-def send_joint_command(torso, arm_joints,  lin_vel_x, ang_vel_z):
+def send_joint_command(sock, torso, arm_joints,  lin_vel_x, ang_vel_z):
     """
     @brief Sends torso + arm joint commands to the robot over TCP socket.
+    @param sock: The socket object
     @param torso: float, torso lift height
     @param arm_joints: list of 7 floats
     @param lin_vel_x: float, base linear velocity in x
@@ -64,9 +65,9 @@ def send_joint_command(torso, arm_joints,  lin_vel_x, ang_vel_z):
     message = [torso] + arm_joints + [lin_vel_x, ang_vel_z]
 
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((SERVER_IP, SERVER_PORT))
-            s.sendall(pickle.dumps(message, protocol=2))  # Use protocol=2 for Python2 compatibility
+        # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        #     s.connect((SERVER_IP, SERVER_PORT))
+        sock.sendall(pickle.dumps(message, protocol=2))  # Use protocol=2 for Python2 compatibility
     except Exception as e:
         print(f"⚠️ Socket send failed: {e}")
 
@@ -86,7 +87,7 @@ def main():
     robotId = p.loadURDF(urdf_path, [0, 0, 0.1], p.getQuaternionFromEuler([0, 0, 0]), useFixedBase=True)
     print("✅ Tiago loaded")
 
-        # Initialize Pygame and the joystick
+    # Initialize Pygame and the joystick
     pygame.init()
     pygame.joystick.init()
     if pygame.joystick.get_count() > 0:
@@ -96,6 +97,19 @@ def main():
     else:
         print("⚠️ No joystick found. Base velocities will be zero.")
         joystick = None
+
+    # Establish Socket Communication
+    client_socket = None
+    if USE_REAL_ROBOT:
+        try:
+            print(f"Connecting to robot at {SERVER_IP}:{SERVER_PORT}...")
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.connect((SERVER_IP, SERVER_PORT))
+            print("✅ Connected to robot.")
+        except Exception as e:
+            print(f"⚠️ Failed to connect to robot: {e}")
+            client_socket = None
+
 
     # 3. Increase mass for stability
     for link_id in range(-1, p.getNumJoints(robotId)):
@@ -272,7 +286,7 @@ def main():
             for i, (ik_idx, joint_id) in enumerate(arm_ik_indices):
                 p.setJointMotorControl2(robotId, joint_id, p.POSITION_CONTROL, arm_joint_positions[i], force=1000)
 
-            send_joint_command(torso, arm_joint_positions, lin_vel_x, ang_vel_z)
+            send_joint_command(client_socket, torso, arm_joint_positions, lin_vel_x, ang_vel_z)
 
             if marker_id is not None: p.removeUserDebugItem(marker_id)
             z_axis = p.getMatrixFromQuaternion(orn)[6:]

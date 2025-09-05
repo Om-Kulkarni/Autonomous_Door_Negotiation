@@ -383,3 +383,40 @@ tiago_fk.py and tiago_pytbullet.py are hopefully the same but one of the is sure
 sim_ik_client.py: The simulation and client side code that updates the simulation and the sends the joint state
 to the real robot
 socket_server.py: The server side code which uses rostopic lists to send joint commands to the real robot
+
+# Joystick control and calibration
+```bash
+jstest-gtk
+```
+
+joystick_test.py: Script to print out button indexes to confirm whether they match the ones seen in jstest-gtk
+
+# Tiago Joystick Control Scheme
+
+This simulation uses a dual-mode control system, allowing for a clear separation between driving the robot's base and manipulating its arm.
+
+**Press the `SELECT` button on the controller to toggle between the two modes.**
+
+---
+
+### Mode 1: Base Control
+
+In this mode, the controller is dedicated to driving the robot's base. The arm remains stationary.
+
+| Action             | Controller Input |
+| ------------------ | ---------------- |
+| Move & Turn Base   | **Left Stick** |
+| (Arm is stationary) | (Other inputs inactive) |
+
+---
+
+### Mode 2: Arm Control
+
+In this mode, the robot's base is stationary, and the controller is fully dedicated to positioning the end-effector.
+
+| Action                                     | Controller Input        |
+| ------------------------------------------ | ----------------------- |
+| **Position** (`X`/`Y`): Forward/Back & L/R | **Left Stick**          |
+| **Position** (`Z`): Up/Down                | **D-Pad** Up/Down       |
+| **Orientation** (`Pitch`/`Yaw`): Nod/Turn  | **Right Stick**         |
+| **Orientation** (`Roll`): Twist            | **R2 / L2 Buttons**     |

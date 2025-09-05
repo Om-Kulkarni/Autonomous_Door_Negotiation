@@ -34,6 +34,10 @@ INITIAL_POSITIONS = {
     37: -1.58    # arm_7_joint
 }
 
+# Initial Gripper Positions
+GRIPPER_OPEN_VALUE = 0.045  # Slightly less than max for safety
+GRIPPER_CLOSED_POS = [0.0, 0.0]
+
 # Controller Constants for DS3 on Linux
 AXIS_LEFT_STICK_X = 0
 AXIS_LEFT_STICK_Y = 1
@@ -45,13 +49,15 @@ AXIS_R2 = 5
 BUTTON_SELECT = 8
 BUTTON_TRIANGLE = 2
 BUTTON_CROSS = 0
+BUTTON_SQUARE = 3
+BUTTON_CIRCLE = 1
 
 # Socket config (match real robot IP and port)
 SERVER_IP = "10.68.0.1"  # Replace with robot IP
 SERVER_PORT = 65432
 USE_REAL_ROBOT = True
 
-def send_joint_command(sock, torso, arm_joints,  lin_vel_x, ang_vel_z):
+def send_joint_command(sock, torso, arm_joints,  lin_vel_x, ang_vel_z, gripper_command):
     """
     @brief Sends torso + arm joint commands to the robot over TCP socket.
     @param sock: The socket object
@@ -59,11 +65,12 @@ def send_joint_command(sock, torso, arm_joints,  lin_vel_x, ang_vel_z):
     @param arm_joints: list of 7 floats
     @param lin_vel_x: float, base linear velocity in x
     @param ang_vel_z: float, base angular velocity around z
+    @param gripper_command: Set what the grippers position should be (open, close)
     """
     if not USE_REAL_ROBOT:
         return  # Skip socket communication
 
-    message = [torso] + arm_joints + [lin_vel_x, ang_vel_z]
+    message = [torso] + arm_joints + [lin_vel_x, ang_vel_z, gripper_command]
     payload = pickle.dumps(message, protocol=2)
     # Prefix payload with its length as a 4-byte unsigned integer
     header = struct.pack('>I', len(payload))
@@ -127,7 +134,13 @@ def main():
     numJoints = p.getNumJoints(robotId)
     jointIds = []
     jointNames = []
+    gripper_joint_indices = []
     ee_link_index = None
+
+    if gripper_joint_indices:
+        print("✅ Setting initial gripper position to OPEN.")
+        for joint_id in gripper_joint_indices:
+            p.setJointMotorControl2(robotId, joint_id, p.POSITION_CONTROL, GRIPPER_OPEN_VALUE, force=50)
 
     for i in range(numJoints):
         info = p.getJointInfo(robotId, i)
@@ -137,6 +150,9 @@ def main():
         if name == "arm_tool_joint":
             ee_link_index = i
             print(f"Found end-effector: '{name}' at index {i}")
+
+        if name in ["gripper_left_finger_joint", "gripper_right_finger_joint"]:
+            gripper_joint_indices.append(i)
 
         if jointType in (p.JOINT_REVOLUTE, p.JOINT_PRISMATIC):
             jointIds.append(i)
@@ -199,6 +215,7 @@ def main():
             lin_vel_x, ang_vel_z = 0.0, 0.0
             d_pos = [0, 0, 0]  # Change in position [dx, dy, dz]
             d_euler = [0, 0, 0] # Change in orientation [droll, dpitch, dyaw]
+            gripper_command = 0 # 0: no-op, 1: open, 2: close
 
             # --- Process Pygame Events for Mode Switching ---
             if joystick:
@@ -207,6 +224,11 @@ def main():
                         if event.button == BUTTON_SELECT:
                             control_mode = 'ARM' if control_mode == 'BASE' else 'BASE'
                             print(f"\n-- MODE SWITCH: {control_mode} CONTROL --")
+                        if control_mode == 'ARM':
+                            if event.button == BUTTON_CIRCLE: # Open
+                                gripper_command = 1
+                            if event.button == BUTTON_SQUARE: # Close
+                                gripper_command = 2
 
             # --- Apply Control Logic Based on Current Mode ---
             if joystick:
@@ -238,7 +260,7 @@ def main():
 
                     # Right Stick for EE Orient (Pitch, Yaw)
                     dpitch_raw = joystick.get_axis(AXIS_RIGHT_STICK_Y) # Nod
-                    dyaw_raw = joystick.get_axis(AXIS_RIGHT_STICK_X)   # Turn
+                    dyaw_raw = -joystick.get_axis(AXIS_RIGHT_STICK_X)   # Turn
                     if abs(dpitch_raw) > dead_zone: d_euler[1] = dpitch_raw
                     if abs(dyaw_raw) > dead_zone: d_euler[2] = dyaw_raw
                     
@@ -288,7 +310,14 @@ def main():
             for i, (ik_idx, joint_id) in enumerate(arm_ik_indices):
                 p.setJointMotorControl2(robotId, joint_id, p.POSITION_CONTROL, arm_joint_positions[i], force=1000)
 
-            send_joint_command(client_socket, torso, arm_joint_positions, lin_vel_x, ang_vel_z)
+            if gripper_command == 1: # OPEN
+                for joint_id in gripper_joint_indices:
+                    p.setJointMotorControl2(robotId, joint_id, p.POSITION_CONTROL, GRIPPER_OPEN_VALUE, force=50)
+            elif gripper_command == 2: # CLOSE
+                for joint_id in gripper_joint_indices:
+                    p.setJointMotorControl2(robotId, joint_id, p.POSITION_CONTROL, 0.0, force=50)
+
+            send_joint_command(client_socket, torso, arm_joint_positions, lin_vel_x, ang_vel_z, gripper_command)
 
             if marker_id is not None: p.removeUserDebugItem(marker_id)
             z_axis = p.getMatrixFromQuaternion(orn)[6:]

@@ -19,6 +19,10 @@ PORT = 65432
 DEFAULT_TORSO_POS = 0.30  # meters
 DEFAULT_ARM_POSITIONS = [1.61, -0.93, -3.14, 1.83, -1.58, -0.62, -1.58]  # radians
 
+# Gripper configuration
+GRIPPER_OPEN_POS = [0.045, 0.045]  # Slightly less than max for safety
+GRIPPER_CLOSED_POS = [0.0, 0.0]
+
 def send_torso_command(z_height, torso_pub):
     traj = JointTrajectory()
     traj.joint_names = ['torso_lift_joint']
@@ -55,6 +59,17 @@ def send_base_command(lin_vel_x, ang_vel_z, base_pub):
     twist_msg.angular.z = ang_vel_z
     base_pub.publish(twist_msg)
 
+def send_gripper_command(positions, gripper_pub):
+    """Creates and publishes a JointTrajectory message to control the gripper."""
+    traj = JointTrajectory()
+    traj.joint_names = ['gripper_left_finger_joint', 'gripper_right_finger_joint']
+    point = JointTrajectoryPoint()
+    point.positions = positions
+    point.time_from_start = rospy.Duration(1.0)
+    traj.points = [point]
+    gripper_pub.publish(traj)
+    rospy.loginfo("Published gripper positions: {}".format(positions))
+
 def recv_msg(conn):
     """Helper function to receive a message with a 4-byte length prefix."""
     # Read the header to get the message length
@@ -78,11 +93,13 @@ def main():
     torso_pub = rospy.Publisher('/torso_controller/command', JointTrajectory, queue_size=10)
     arm_pub = rospy.Publisher('/arm_controller/command', JointTrajectory, queue_size=10)
     base_pub = rospy.Publisher('/mobile_base_controller/cmd_vel', Twist, queue_size=10)
+    gripper_pub = rospy.Publisher('/gripper_controller/command', JointTrajectory, queue_size=10)
 
     # Publish default start positions once at launch
     rospy.sleep(1.0)  # Wait for publishers to register
     send_torso_command(DEFAULT_TORSO_POS, torso_pub)
     send_arm_command(DEFAULT_ARM_POSITIONS, arm_pub)
+    send_gripper_command(GRIPPER_OPEN_POS, gripper_pub)
     rospy.loginfo("Published default start positions on startup.")
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -110,7 +127,7 @@ def main():
 
                             try:
                                 joint_command = pickle.loads(data)
-                                if not isinstance(joint_command, (list, tuple)) or len(joint_command) != 10:
+                                if not isinstance(joint_command, (list, tuple)) or len(joint_command) != 11:
                                     rospy.logwarn("Received invalid joint command format: %s", joint_command)
                                     continue
 
@@ -118,10 +135,16 @@ def main():
                                 arm_positions = joint_command[1:8] # Takes joints 1 through 7
                                 lin_vel_x = joint_command[8]
                                 ang_vel_z = joint_command[9]
+                                gripper_command = joint_command[10] # 0: no-op, 1: open, 2: close
 
                                 send_torso_command(torso_pos, torso_pub)
                                 send_arm_command(arm_positions, arm_pub)
                                 send_base_command(lin_vel_x, ang_vel_z, base_pub)
+                                
+                                if gripper_command == 1:
+                                    send_gripper_command(GRIPPER_OPEN_POS, gripper_pub)
+                                elif gripper_command == 2:
+                                    send_gripper_command(GRIPPER_CLOSED_POS, gripper_pub)
 
                             except (pickle.UnpicklingError, ValueError) as e:
                                 rospy.logwarn("Failed to parse joint command: {}".format(e))

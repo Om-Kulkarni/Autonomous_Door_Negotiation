@@ -14,6 +14,7 @@ import time
 import os
 import numpy as np
 import socket
+import struct
 import pickle
 import pygame
 
@@ -63,11 +64,12 @@ def send_joint_command(sock, torso, arm_joints,  lin_vel_x, ang_vel_z):
         return  # Skip socket communication
 
     message = [torso] + arm_joints + [lin_vel_x, ang_vel_z]
+    payload = pickle.dumps(message, protocol=2)
+    # Prefix payload with its length as a 4-byte unsigned integer
+    header = struct.pack('>I', len(payload))
 
     try:
-        # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        #     s.connect((SERVER_IP, SERVER_PORT))
-        sock.sendall(pickle.dumps(message, protocol=2))  # Use protocol=2 for Python2 compatibility
+        sock.sendall(header + payload)  # Use protocol=2 for Python2 compatibility
     except Exception as e:
         print(f"⚠️ Socket send failed: {e}")
 

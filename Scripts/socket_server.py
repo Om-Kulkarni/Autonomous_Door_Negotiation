@@ -5,6 +5,7 @@
 """
 
 import socket
+import struct
 import pickle
 import rospy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
@@ -54,6 +55,23 @@ def send_base_command(lin_vel_x, ang_vel_z, base_pub):
     twist_msg.angular.z = ang_vel_z
     base_pub.publish(twist_msg)
 
+def recv_msg(conn):
+    """Helper function to receive a message with a 4-byte length prefix."""
+    # Read the header to get the message length
+    raw_msglen = conn.recv(4)
+    if not raw_msglen:
+        return None
+    msglen = struct.unpack('>I', raw_msglen)[0]
+    
+    # Read the full message payload
+    data = bytearray()
+    while len(data) < msglen:
+        packet = conn.recv(msglen - len(data))
+        if not packet:
+            return None
+        data.extend(packet)
+    return data
+
 def main():
     rospy.init_node('socket_server', anonymous=True)
 
@@ -85,7 +103,7 @@ def main():
                 try:
                     while not rospy.is_shutdown():
                         try:
-                            data = conn.recv(1024)
+                            data = recv_msg(conn)
                             if not data:
                                 rospy.logwarn("No data received, client likely disconnected")
                                 break

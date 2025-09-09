@@ -81,7 +81,7 @@ source /tiago_ws/install/setup.bash
 
 ## Add Lerobot Fork
 ```bash
-git clone git@github.com:Om-Kulkarni/lerobot_tiago.git
+git clone https://github.com/Om-Kulkarni/lerobot_tiago.git
 ```
 
 ## Control Topics & Examples

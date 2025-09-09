@@ -425,3 +425,11 @@ In this mode, the robot's base is stationary, and the controller is fully dedica
 | **Position** (`Z`): Up/Down                | **D-Pad** Up/Down       |
 | **Orientation** (`Pitch`/`Yaw`): Nod/Turn  | **Right Stick**         |
 | **Orientation** (`Roll`): Twist            | **R2 / L2 Buttons**     |
+
+
+## Tiago Files for Lerobot Framework
+
+The tiago files have been rewritten to follow the Lerobot Framework.
+Tiago/tiago_host.py:    Handles the TCP connection with the client. (Lives in the robot)
+Tiago/tiago.py:         Handles the ROS communication to move the robot base and the arm. (Lives in the robot)
+Tiago/tiago_client.py:  Handles The communication with the host. has all the functions to follow the Lerobot Framework.

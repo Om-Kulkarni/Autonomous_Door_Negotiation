@@ -1,8 +1,9 @@
 import pygame
 
+
 def run_test():
     """Initializes a joystick and prints all input events to the console."""
-    
+
     # Basic setup for pygame and the joystick
     pygame.init()
     pygame.joystick.init()
@@ -24,7 +25,7 @@ def run_test():
             for event in pygame.event.get():
                 if event.type == pygame.JOYBUTTONDOWN:
                     print(f"Button Pressed:  {event.button}")
-                
+
                 elif event.type == pygame.JOYBUTTONUP:
                     print(f"Button Released: {event.button}")
 
@@ -32,7 +33,7 @@ def run_test():
                     # To avoid spamming, only print axis motion if value is significant
                     if abs(event.value) > 0.1:
                         print(f"Axis Moved:      {event.axis}, Value: {event.value:.3f}")
-                
+
                 elif event.type == pygame.JOYHATMOTION:
                     print(f"D-Pad Moved:     Hat {event.hat}, Value: {event.value}")
 
@@ -40,6 +41,7 @@ def run_test():
         print("\n👋 Test finished.")
     finally:
         pygame.quit()
+
 
 if __name__ == "__main__":
     run_test()

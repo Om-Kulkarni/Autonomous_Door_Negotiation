@@ -1,16 +1,16 @@
-import rospy
-import actionlib
 import socket
 
+import actionlib
+import rospy
 from geometry_msgs.msg import PoseStamped
 from moveit_msgs.msg import (
+    BoundingVolume,
+    Constraints,
+    MotionPlanRequest,
     MoveGroupAction,
     MoveGroupGoal,
-    MotionPlanRequest,
-    Constraints,
-    PositionConstraint,
     OrientationConstraint,
-    BoundingVolume
+    PositionConstraint,
 )
 from shape_msgs.msg import SolidPrimitive
 from tf.transformations import quaternion_from_euler
@@ -87,18 +87,18 @@ def send_ik_goal(x, y, z, client):
 
 
 def main():
-    rospy.init_node('socket_ik_controller_py2')
+    rospy.init_node("socket_ik_controller_py2")
 
     # Set up socket server
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind(('0.0.0.0', 9999))
+    server_socket.bind(("0.0.0.0", 9999))
     server_socket.listen(1)
 
     rospy.loginfo("Socket server listening on 0.0.0.0:9999")
 
     # Connect to MoveIt move_group action server
-    client = actionlib.SimpleActionClient('move_group', MoveGroupAction)
+    client = actionlib.SimpleActionClient("move_group", MoveGroupAction)
     rospy.loginfo("Waiting for move_group action server...")
     client.wait_for_server()
     rospy.loginfo("Connected to move_group action server.")
@@ -107,7 +107,7 @@ def main():
     rospy.loginfo("Client connected from %s", str(addr))
     prevx, prevy, prevz = 0.0, 0.0, 0.0
     while not rospy.is_shutdown():
-        print('start')
+        print("start")
         try:
             data = conn.recv(1024)
             if not data:
@@ -117,7 +117,7 @@ def main():
             data = data.strip()
             rospy.loginfo("Received: %s", data)
 
-            parts = data.split(',')
+            parts = data.split(",")
             if len(parts) != 3:
                 rospy.logwarn("Invalid input. Expected 'x,y,z'")
                 continue
@@ -129,18 +129,16 @@ def main():
             except ValueError:
                 rospy.logwarn("Non-float values received.")
                 continue
-            x,y,z = round(x, 2), round(y, 2), round(z, 2)
+            x, y, z = round(x, 2), round(y, 2), round(z, 2)
             if (
-                abs(x - prevx) < THRESHOLD and
-                abs(y - prevy) < THRESHOLD and
-                abs(z - prevz) < THRESHOLD
+                abs(x - prevx) < THRESHOLD
+                and abs(y - prevy) < THRESHOLD
+                and abs(z - prevz) < THRESHOLD
             ):
                 rospy.loginfo("No significant change in coordinates, skipping.")
                 continue
 
-            
-
-            rospy.loginfo("Processed coordinates: %.2f, %.2f, %.2f" % (x, y, z))
+            rospy.loginfo(f"Processed coordinates: {x:.2f}, {y:.2f}, {z:.2f}")
             send_ik_goal(x, y, z, client)
             prevx, prevy, prevz = x, y, z
             conn.sendall("Move command received\n")
@@ -148,12 +146,12 @@ def main():
         except Exception as e:
             rospy.logerr("Error: %s", str(e))
             break
-        print('end')
+        print("end")
     conn.close()
     server_socket.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except rospy.ROSInterruptException:

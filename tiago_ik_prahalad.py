@@ -1,17 +1,19 @@
+import os
+import pickle
+import socket
+import time
+
+import numpy as np
 import pybullet as p
 import pybullet_data
-import time
-import os
-import numpy as np
-import socket
-import pickle
 
-HOST = '10.68.0.1'
+HOST = "10.68.0.1"
 PORT = 65432
+
 
 def main():
     # 1. Connect to PyBullet
-    physicsClient = p.connect(p.GUI)
+    p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
     p.loadURDF("plane.urdf")
@@ -49,7 +51,7 @@ def main():
 
     for i in range(numJoints):
         info = p.getJointInfo(robotId, i)
-        name = info[1].decode('utf-8')
+        name = info[1].decode("utf-8")
         jointType = info[2]
 
         # Update this to match your URDF (e.g., "gripper_left_finger_joint" or "gripper_right_finger_joint")
@@ -67,50 +69,52 @@ def main():
         print("Available joints:")
         for i in range(numJoints):
             info = p.getJointInfo(robotId, i)
-            name = info[1].decode('utf-8')
+            name = info[1].decode("utf-8")
             print(f"  {i}: {name}")
         print("Update the script with the correct end-effector joint name.")
         return
 
     # 4. Create GUI sliders for target pose
     gui_params = {
-        'target_x': p.addUserDebugParameter("Target X", -1.0, 1.0, 0.5),
-        'target_y': p.addUserDebugParameter("Target Y", -1.0, 1.0, -0.6),
-        'target_z': p.addUserDebugParameter("Target Z", 0.2, 1.2, 1.0),  # Adjusted range for better reachability
-        'roll': p.addUserDebugParameter("Roll", -3.14, 3.14, 0.0),
-        'pitch': p.addUserDebugParameter("Pitch", -3.14, 3.14, 0.0),
-        'yaw': p.addUserDebugParameter("Yaw", -3.14, 3.14, 0.0)
+        "target_x": p.addUserDebugParameter("Target X", -1.0, 1.0, 0.5),
+        "target_y": p.addUserDebugParameter("Target Y", -1.0, 1.0, -0.6),
+        "target_z": p.addUserDebugParameter(
+            "Target Z", 0.2, 1.2, 1.0
+        ),  # Adjusted range for better reachability
+        "roll": p.addUserDebugParameter("Roll", -3.14, 3.14, 0.0),
+        "pitch": p.addUserDebugParameter("Pitch", -3.14, 3.14, 0.0),
+        "yaw": p.addUserDebugParameter("Yaw", -3.14, 3.14, 0.0),
     }
 
     print("✅ Sliders created for 6-DoF end-effector control.")
 
     marker_id = None
     # 5. Read target position and orientation
-    tx = p.readUserDebugParameter(gui_params['target_x'])
-    ty = p.readUserDebugParameter(gui_params['target_y'])
-    tz = p.readUserDebugParameter(gui_params['target_z'])
-    roll = p.readUserDebugParameter(gui_params['roll'])
-    pitch = p.readUserDebugParameter(gui_params['pitch'])
-    yaw = p.readUserDebugParameter(gui_params['yaw'])
+    tx = p.readUserDebugParameter(gui_params["target_x"])
+    ty = p.readUserDebugParameter(gui_params["target_y"])
+    tz = p.readUserDebugParameter(gui_params["target_z"])
+    roll = p.readUserDebugParameter(gui_params["roll"])
+    pitch = p.readUserDebugParameter(gui_params["pitch"])
+    yaw = p.readUserDebugParameter(gui_params["yaw"])
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((HOST,PORT))
+            s.connect((HOST, PORT))
             while True:
                 data = s.recv(1024)
                 if not data:
                     continue
-                dx,dy,dz,droll,dpitch,dyaw = pickle.loads(data)
+                dx, dy, dz, droll, dpitch, dyaw = pickle.loads(data)
                 print(f"Changes to the value: dx={dx}, dy={dy}, dz={dz}")
-                tx+=dx
-                ty+=dy
-                tz+=dz
-                roll+=droll
-                pitch+=dpitch
-                yaw+=dyaw
+                tx += dx
+                ty += dy
+                tz += dz
+                roll += droll
+                pitch += dpitch
+                yaw += dyaw
 
-                tx = max(-1.0, min(1.0, tx))     # Clip between -1.0 and 1.0
-                ty = max(-1.0, min(1.0, ty))     # Clip between -1.0 and 1.0
-                tz = max(0.2, min(1.2, tz))   
+                tx = max(-1.0, min(1.0, tx))  # Clip between -1.0 and 1.0
+                ty = max(-1.0, min(1.0, ty))  # Clip between -1.0 and 1.0
+                tz = max(0.2, min(1.2, tz))
 
                 target_pos = [tx, ty, tz]
                 print(target_pos)
@@ -123,11 +127,11 @@ def main():
                     target_pos,
                     targetOrientation=target_orn,
                     maxNumIterations=500,  # Increased from 200
-                    residualThreshold=1e-5  # Lowered from 1e-4
+                    residualThreshold=1e-5,  # Lowered from 1e-4
                 )
-                #print(f'IK Solution:{ik_solution}')
-                #print(f'Joint Names:{jointNames}')
-                #print(f'Joints : {jointIds}')
+                # print(f'IK Solution:{ik_solution}')
+                # print(f'Joint Names:{jointNames}')
+                # print(f'Joints : {jointIds}')
                 # 7. Apply IK joint values to robot (increased force)
                 for i, jointId in enumerate(jointIds):
                     if i < len(ik_solution):
@@ -136,7 +140,7 @@ def main():
                             jointId,
                             controlMode=p.POSITION_CONTROL,
                             targetPosition=ik_solution[i],
-                            force=1000  # Increased from 500
+                            force=1000,  # Increased from 500
                         )
                 transformed = ik_solution[-9:-2]
                 s.sendall(pickle.dumps(transformed, protocol=2))  # ✅ Fix here
@@ -144,14 +148,15 @@ def main():
                 # 8. Debug: Print current end-effector position vs target
                 ee_state = p.getLinkState(robotId, ee_link_index)
                 current_pos = ee_state[0]
-                current_orn = ee_state[1]
-                print(f"Target: {target_pos}, Current: {[round(p, 3) for p in current_pos]}, Error: {round(np.linalg.norm(np.array(target_pos) - np.array(current_pos)), 3)}")
+                ee_state[1]
+                print(
+                    f"Target: {target_pos}, Current: {[round(p, 3) for p in current_pos]}, Error: {round(np.linalg.norm(np.array(target_pos) - np.array(current_pos)), 3)}"
+                )
 
                 # 9. Visual marker for target
                 if marker_id is not None:
                     p.removeUserDebugItem(marker_id)
 
-                dir_vec = [0, 0, 0.1]
                 orn_mat = p.getMatrixFromQuaternion(target_orn)
                 z_axis = [orn_mat[6], orn_mat[7], orn_mat[8]]
                 end_pt = [target_pos[i] + z_axis[i] * 0.1 for i in range(3)]
@@ -162,7 +167,7 @@ def main():
 
                 # 10. Step simulation
                 p.stepSimulation()
-                time.sleep(1. / 240.)
+                time.sleep(1.0 / 240.0)
 
     except KeyboardInterrupt:
         print("Simulation interrupted by user.")

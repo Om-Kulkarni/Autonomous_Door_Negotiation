@@ -1,16 +1,16 @@
-import rospy
-import actionlib
 import socket
 
+import actionlib
+import rospy
 from geometry_msgs.msg import PoseStamped
 from moveit_msgs.msg import (
+    BoundingVolume,
+    Constraints,
+    MotionPlanRequest,
     MoveGroupAction,
     MoveGroupGoal,
-    MotionPlanRequest,
-    Constraints,
-    PositionConstraint,
     OrientationConstraint,
-    BoundingVolume
+    PositionConstraint,
 )
 from shape_msgs.msg import SolidPrimitive
 from tf.transformations import quaternion_from_euler
@@ -85,18 +85,18 @@ def send_ik_goal(x, y, z, client):
 
 
 def main():
-    rospy.init_node('socket_ik_controller_py2')
+    rospy.init_node("socket_ik_controller_py2")
 
     # Set up socket server
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind(('0.0.0.0', 9999))
+    server_socket.bind(("0.0.0.0", 9999))
     server_socket.listen(1)
 
     rospy.loginfo("Socket server listening on 0.0.0.0:9999")
 
     # Connect to MoveIt move_group action server
-    client = actionlib.SimpleActionClient('move_group', MoveGroupAction)
+    client = actionlib.SimpleActionClient("move_group", MoveGroupAction)
     rospy.loginfo("Waiting for move_group action server...")
     client.wait_for_server()
     rospy.loginfo("Connected to move_group action server.")
@@ -114,7 +114,7 @@ def main():
             data = data.strip()
             rospy.loginfo("Received: %s", data)
 
-            parts = data.split(',')
+            parts = data.split(",")
             if len(parts) != 3:
                 rospy.logwarn("Invalid input. Expected 'x,y,z'")
                 continue
@@ -126,7 +126,7 @@ def main():
             except ValueError:
                 rospy.logwarn("Non-float values received.")
                 continue
-            x,y,z = round(x, 2), round(y, 2), round(z, 2)
+            x, y, z = round(x, 2), round(y, 2), round(z, 2)
 
             if abs(x - prevx) == 0.0 or abs(y - prevy) == 0.0 and abs(z - prevz) == 0.0:
                 rospy.loginfo("No significant change in coordinates, skipping.")
@@ -146,7 +146,7 @@ def main():
     server_socket.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except rospy.ROSInterruptException:

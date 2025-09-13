@@ -1,12 +1,9 @@
-
 import logging
 import time
 from dataclasses import asdict, dataclass
 from pprint import pformat
 
 import draccus
-import rerun as rr
-
 from lerobot.teleoperators import (  # noqa: F401
     Teleoperator,
     TeleoperatorConfig,
@@ -18,9 +15,7 @@ from lerobot.teleoperators import (  # noqa: F401
     so100_leader,
     so101_leader,
 )
-
 from lerobot.utils.robot_utils import busy_wait
-
 
 
 @dataclass
@@ -30,8 +25,22 @@ class LeaderConfig:
 
 def teleop_loop(teleop: Teleoperator):
     fps = 30
-    min_range = {'shoulder_pan.pos': -0.2500893176134298, 'shoulder_lift.pos': -99.59399106780349, 'elbow_flex.pos': 98.85361552028218, 'wrist_flex.pos': 51.22918318794606, 'wrist_roll.pos': -48.62240881658357, 'gripper.pos': 0.0}
-    max_range = {'shoulder_pan.pos': -0.2500893176134298, 'shoulder_lift.pos': -99.59399106780349, 'elbow_flex.pos': 98.85361552028218, 'wrist_flex.pos': 51.22918318794606, 'wrist_roll.pos': -48.62240881658357, 'gripper.pos': 0.0}
+    min_range = {
+        "shoulder_pan.pos": -0.2500893176134298,
+        "shoulder_lift.pos": -99.59399106780349,
+        "elbow_flex.pos": 98.85361552028218,
+        "wrist_flex.pos": 51.22918318794606,
+        "wrist_roll.pos": -48.62240881658357,
+        "gripper.pos": 0.0,
+    }
+    max_range = {
+        "shoulder_pan.pos": -0.2500893176134298,
+        "shoulder_lift.pos": -99.59399106780349,
+        "elbow_flex.pos": 98.85361552028218,
+        "wrist_flex.pos": 51.22918318794606,
+        "wrist_roll.pos": -48.62240881658357,
+        "gripper.pos": 0.0,
+    }
 
     while True:
         loop_start = time.perf_counter()
@@ -40,8 +49,8 @@ def teleop_loop(teleop: Teleoperator):
             min_range[k] = min(min_range[k], v)
             max_range[k] = max(max_range[k], v)
 
-        #print(f"action: {action}")
-        #print(f"range: {range}")
+        # print(f"action: {action}")
+        # print(f"range: {range}")
 
         print(f"min_range: {min_range}")
         print(f"max_range: {max_range}")
@@ -63,6 +72,7 @@ def teleoperate(cfg: LeaderConfig):
     finally:
         teleop.disconnect()
 
+
 def main():
     teleoperate()
 
@@ -71,7 +81,7 @@ if __name__ == "__main__":
     main()
 
 
-'''
+"""
 min_range: {'shoulder_pan.pos': -100.0, 'shoulder_lift.pos': -100.0, 'elbow_flex.pos': -99.73544973544973, 'wrist_flex.pos': -100.0, 'wrist_roll.pos': -100.0, 'gripper.pos': 0.0}
 max_range: {'shoulder_pan.pos': 100.0, 'shoulder_lift.pos': 100.0, 'elbow_flex.pos': 100.0, 'wrist_flex.pos': 100.0, 'wrist_roll.pos': 100.0, 'gripper.pos': 100.0}
 shoulder_pan_pos = 0 to 0.274 -> arm1
@@ -81,4 +91,4 @@ wrist_flex.pos = -1.414 to 1.414  -> arm6
 wrist_roll.pos = -2.094 to 2.094  -> arm7
 gripper.pos = 0 to 0.45 -> gripper_right_finger_joint
 
-'''
+"""

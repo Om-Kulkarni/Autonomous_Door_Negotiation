@@ -1,7 +1,7 @@
-import socket
 import pickle
+import socket
 
-HOST = '10.68.0.1'  # Replace with your server's IP
+HOST = "10.68.0.1"  # Replace with your server's IP
 PORT = 65432
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

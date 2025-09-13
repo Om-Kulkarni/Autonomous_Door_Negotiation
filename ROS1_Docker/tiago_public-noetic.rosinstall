@@ -3,11 +3,11 @@
 # =============================================================================
 # This file defines the ROS packages needed for TiAGO door negotiation.
 # Unnecessary packages have been commented out to reduce build time.
-# 
+#
 # Essential packages are organized by category:
 # - Perception & Detection
 # - Simulation & Gazebo
-# - Navigation & SLAM  
+# - Navigation & SLAM
 # - Robot Control & Hardware
 # - TiAGO Core Packages
 # =============================================================================

@@ -1,18 +1,24 @@
 #!/usr/bin/env python
 
 import rospy
+from control_msgs.msg import JointTrajectoryControllerState
 from sensor_msgs.msg import Joy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from control_msgs.msg import JointTrajectoryControllerState
+
 
 class ArmJoyTrajectoryPublisher:
     def __init__(self):
-        rospy.init_node('arm_joy_trajectory_publisher')
+        rospy.init_node("arm_joy_trajectory_publisher")
 
         # Arm joint names
         self.joint_names = [
-            'arm_1_joint', 'arm_2_joint', 'arm_3_joint',
-            'arm_4_joint', 'arm_5_joint', 'arm_6_joint', 'arm_7_joint'
+            "arm_1_joint",
+            "arm_2_joint",
+            "arm_3_joint",
+            "arm_4_joint",
+            "arm_5_joint",
+            "arm_6_joint",
+            "arm_7_joint",
         ]
 
         # Current joint positions (will be updated via /arm_controller/state)
@@ -22,19 +28,19 @@ class ArmJoyTrajectoryPublisher:
         self.increment_step = 0.02
 
         # Publisher to trajectory topic
-        self.arm_pub = rospy.Publisher(
-            '/arm_controller/command',
-            JointTrajectory,
-            queue_size=1
-        )
+        self.arm_pub = rospy.Publisher("/arm_controller/command", JointTrajectory, queue_size=1)
 
         # Subscribe to joystick input
-        rospy.Subscriber('/joy', Joy, self.joy_callback)
+        rospy.Subscriber("/joy", Joy, self.joy_callback)
 
         # Subscribe to arm controller state to update actual joint positions
-        rospy.Subscriber('/arm_controller/state', JointTrajectoryControllerState, self.state_callback)
+        rospy.Subscriber(
+            "/arm_controller/state", JointTrajectoryControllerState, self.state_callback
+        )
 
-        rospy.loginfo("ArmJoyTrajectoryPublisher is running and listening to /joy and /arm_controller/state")
+        rospy.loginfo(
+            "ArmJoyTrajectoryPublisher is running and listening to /joy and /arm_controller/state"
+        )
 
     def state_callback(self, msg):
         # Update current joint positions from controller state
@@ -54,9 +60,7 @@ class ArmJoyTrajectoryPublisher:
             return
 
         # Calculate new joint positions from actual positions
-        new_positions = [
-            curr + delta for curr, delta in zip(self.current_positions, deltas)
-        ]
+        new_positions = [curr + delta for curr, delta in zip(self.current_positions, deltas)]
 
         # Build trajectory message
         traj = JointTrajectory()
@@ -71,6 +75,7 @@ class ArmJoyTrajectoryPublisher:
         rospy.loginfo("Publishing new joint trajectory: %s", new_positions)
         self.arm_pub.publish(traj)
 
+
 def main():
     try:
         ArmJoyTrajectoryPublisher()
@@ -78,5 +83,6 @@ def main():
     except rospy.ROSInterruptException:
         pass
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

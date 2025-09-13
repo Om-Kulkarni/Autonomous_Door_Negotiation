@@ -1,9 +1,8 @@
-import numpy as np
-
-from pyqtgraph.Qt import QtGui, QtCore
-import pyqtgraph as pg
-
 import platform
+
+import numpy as np
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore, QtGui
 
 from tiago_rl.envs.bullet_robot_env import POS_CTRL, VEL_CTRL
 
@@ -18,9 +17,11 @@ class LoadCellVisualiser:
         self.app = QtGui.QApplication([])
 
         # configure window
-        self.win = pg.GraphicsLayoutWidget(show=True, )
+        self.win = pg.GraphicsLayoutWidget(
+            show=True,
+        )
         self.win.resize(1000, 600)
-        self.win.setWindowTitle('Force Visualisation')
+        self.win.setWindowTitle("Force Visualisation")
 
         # enable antialiasing for prettier plots
         pg.setConfigOptions(antialias=True)
@@ -38,10 +39,7 @@ class LoadCellVisualiser:
 
         # draw lines at threshold force
         for pl in [self.pl_force]:
-            threshold_line = pg.InfiniteLine(
-                pos=env.force_threshold,
-                angle=0
-            )
+            threshold_line = pg.InfiniteLine(pos=env.force_threshold, angle=0)
             pl.addItem(threshold_line)
 
         self.win.nextRow()
@@ -53,7 +51,7 @@ class LoadCellVisualiser:
         self.pl_q.setYRange(0.05, -0.005)
 
         # set ticks at fully open, middle and fully closed
-        ay = self.pl_q.getAxis('left')
+        ay = self.pl_q.getAxis("left")
         ticks = [0.045, 0.02, 0.0]
         ay.setTicks([[(v, str(v)) for v in ticks]])
 
@@ -61,21 +59,15 @@ class LoadCellVisualiser:
         if env.max_joint_velocities:
             self.max_vel = np.abs(list(env.max_joint_velocities.values())[0])
 
-            max_line = pg.InfiniteLine(
-                pos=self.max_vel,
-                angle=0
-            )
-            neg_max_line = pg.InfiniteLine(
-                pos=-self.max_vel,
-                angle=0
-            )
+            max_line = pg.InfiniteLine(pos=self.max_vel, angle=0)
+            neg_max_line = pg.InfiniteLine(pos=-self.max_vel, angle=0)
 
             self.pl_vel.addItem(max_line)
             self.pl_vel.addItem(neg_max_line)
 
             self.pl_vel.setYRange(-self.max_vel * 1.1, self.max_vel * 1.1)
 
-            ay = self.pl_vel.getAxis('left')
+            ay = self.pl_vel.getAxis("left")
             ticks = [-self.max_vel, 0, self.max_vel]
             ay.setTicks([[(v, str(v)) for v in ticks]])
 
@@ -85,7 +77,7 @@ class LoadCellVisualiser:
         self.pl_joint_acc = self.win.addPlot(title="Joint Accelerations")
 
         self.pl_obj_lin_vel.setYRange(-0.02, 0.2)
-        self.pl_joint_acc.setYRange(-2.2*self.max_vel, 2.2*self.max_vel)
+        self.pl_joint_acc.setYRange(-2.2 * self.max_vel, 2.2 * self.max_vel)
 
         self.win.nextRow()
 
@@ -101,36 +93,43 @@ class LoadCellVisualiser:
 
         self.pl_ovel_rew.setYRange(0.01, -1.0)
 
-        self.all_plots = [self.pl_rewa, self.pl_succ, self.pl_obj_lin_vel,
-                          self.pl_joint_acc, self.pl_q, self.pl_vel,
-                          self.pl_force, self.pl_cntct]
+        self.all_plots = [
+            self.pl_rewa,
+            self.pl_succ,
+            self.pl_obj_lin_vel,
+            self.pl_joint_acc,
+            self.pl_q,
+            self.pl_vel,
+            self.pl_force,
+            self.pl_cntct,
+        ]
 
-        self.curve_raw_r = self.pl_force.plot(pen='r')
-        self.curve_raw_l = self.pl_force.plot(pen='y')
+        self.curve_raw_r = self.pl_force.plot(pen="r")
+        self.curve_raw_l = self.pl_force.plot(pen="y")
 
-        self.curve_curr_r = self.pl_cntct.plot(pen='r')
-        self.curve_curr_l = self.pl_cntct.plot(pen='y')
+        self.curve_curr_r = self.pl_cntct.plot(pen="r")
+        self.curve_curr_l = self.pl_cntct.plot(pen="y")
 
-        self.curve_succ = self.pl_succ.plot(pen='g')
-        self.curve_rewa = self.pl_rewa.plot(pen='b')
+        self.curve_succ = self.pl_succ.plot(pen="g")
+        self.curve_rewa = self.pl_rewa.plot(pen="b")
 
-        self.curve_currv_r = self.pl_vel.plot(pen='r')
-        self.curve_currv_l = self.pl_vel.plot(pen='y')
+        self.curve_currv_r = self.pl_vel.plot(pen="r")
+        self.curve_currv_l = self.pl_vel.plot(pen="y")
 
         if env.control_mode == POS_CTRL:
-            self.curve_des_r = self.pl_q.plot(pen='c')
-            self.curve_des_l = self.pl_q.plot(pen='b')
+            self.curve_des_r = self.pl_q.plot(pen="c")
+            self.curve_des_l = self.pl_q.plot(pen="b")
         elif env.control_mode == VEL_CTRL:
-            self.curve_des_r = self.pl_vel.plot(pen='c')
-            self.curve_des_l = self.pl_vel.plot(pen='b')
+            self.curve_des_r = self.pl_vel.plot(pen="c")
+            self.curve_des_l = self.pl_vel.plot(pen="b")
 
-        self.curve_currq_r = self.pl_q.plot(pen='r')
-        self.curve_currq_l = self.pl_q.plot(pen='y')
+        self.curve_currq_r = self.pl_q.plot(pen="r")
+        self.curve_currq_l = self.pl_q.plot(pen="y")
 
-        self.curve_obj_lin_vel = self.pl_obj_lin_vel.plot(pen='m')
+        self.curve_obj_lin_vel = self.pl_obj_lin_vel.plot(pen="m")
 
-        self.curve_acc_r = self.pl_joint_acc.plot(pen='r')
-        self.curve_acc_l = self.pl_joint_acc.plot(pen='y')
+        self.curve_acc_r = self.pl_joint_acc.plot(pen="r")
+        self.curve_acc_l = self.pl_joint_acc.plot(pen="y")
 
         self.curve_force_rew = self.pl_force_rew.plot()
         self.curve_ovel_rew = self.pl_ovel_rew.plot()
@@ -169,19 +168,16 @@ class LoadCellVisualiser:
 
     def _add_target_force_lines(self):
         tf = self.env.target_forces[0]
-        self.raw_target_line = pg.InfiniteLine(
-            pos=tf,
-            angle=0
-        )
+        self.raw_target_line = pg.InfiniteLine(pos=tf, angle=0)
 
         for pl, ln in zip([self.pl_force], [self.raw_target_line]):
             pl.addItem(ln)
 
             # always show target force in ticks
-            ay = pl.getAxis('left')
+            ay = pl.getAxis("left")
             ticks = [0, tf]
             ay.setTicks([[(v, str(v)) for v in ticks]])
-    
+
     def reset_target_force_lines(self):
         self.pl_force.removeItem(self.raw_target_line)
 
@@ -196,9 +192,8 @@ class LoadCellVisualiser:
             pl.addItem(
                 pg.InfiniteLine(
                     pos=self.t,
-                    pen={'color': "#D3D3D3", 'width': 1.5,
-                         'style': QtCore.Qt.DotLine},
-                    angle=90
+                    pen={"color": "#D3D3D3", "width": 1.5, "style": QtCore.Qt.DotLine},
+                    angle=90,
                 )
             )
 
@@ -219,14 +214,14 @@ class LoadCellVisualiser:
         jq, jv = self.env.get_state_dicts()
         dq = self.env.get_desired_q_dict()
 
-        self.des_r.append((dq['gripper_right_finger_joint']))
-        self.des_l.append((dq['gripper_left_finger_joint']))
+        self.des_r.append(dq["gripper_right_finger_joint"])
+        self.des_l.append(dq["gripper_left_finger_joint"])
 
-        self.currq_r.append((jq['gripper_right_finger_joint']))
-        self.currq_l.append((jq['gripper_left_finger_joint']))
+        self.currq_r.append(jq["gripper_right_finger_joint"])
+        self.currq_l.append(jq["gripper_left_finger_joint"])
 
-        self.vel_r.append((jv['gripper_right_finger_joint']))
-        self.vel_l.append((jv['gripper_left_finger_joint']))
+        self.vel_r.append(jv["gripper_right_finger_joint"])
+        self.vel_l.append(jv["gripper_left_finger_joint"])
 
         obj_v = self.env.get_object_velocity()
 
@@ -239,8 +234,8 @@ class LoadCellVisualiser:
             self.accel_l.append(0)
             self.accel_r.append(0)
         else:
-            self.dv_force_r.append((self.raw_r[-2]-self.raw_r[-1])/self.env.dt)
-            self.dv_force_l.append((self.raw_l[-2]-self.raw_l[-1])/self.env.dt)
+            self.dv_force_r.append((self.raw_r[-2] - self.raw_r[-1]) / self.env.dt)
+            self.dv_force_l.append((self.raw_l[-2] - self.raw_l[-1]) / self.env.dt)
 
         self.accel_r.append(self.env.current_acc[0])
         self.accel_l.append(self.env.current_acc[1])
@@ -277,6 +272,5 @@ class LoadCellVisualiser:
 
         # on macOS, calling processEvents() is unnecessary
         # and even results in an error. only do so on Linux
-        if platform.system() == 'Linux':
+        if platform.system() == "Linux":
             self.app.processEvents()
-

@@ -1,20 +1,18 @@
 import os
 import sys
-import time
-import numpy as np
 
 import gym
+import numpy as np
+import pybullet as p
+import pybullet_data
 from gym import spaces
 from gym.utils import seeding
 
-import pybullet as p
-import pybullet_data
-
-from tiago_rl.envs.utils import link_to_idx, joint_to_idx
+from tiago_rl.envs.utils import joint_to_idx, link_to_idx
 
 DEFAULT_SIZE = 500
-POS_CTRL = 'pos'
-VEL_CTRL = 'vel'
+POS_CTRL = "pos"
+VEL_CTRL = "vel"
 
 
 class BulletRobotEnv(gym.Env):
@@ -23,9 +21,24 @@ class BulletRobotEnv(gym.Env):
     This code's starting point was the MuJoCo-based robotics environment from gym:
     https://github.com/openai/gym/blob/master/gym/envs/robotics/robot_env.py
     """
-    def __init__(self, initial_state, joints, n_actions=None, show_gui=False, control_mode='vel',
-                 cam_distance=None, cam_yaw=None, cam_pitch=None, cam_target_position=None, max_joint_velocities=None,
-                 robot_model=None, robot_pos=None, table_model=None, table_pos=None):
+
+    def __init__(
+        self,
+        initial_state,
+        joints,
+        n_actions=None,
+        show_gui=False,
+        control_mode="vel",
+        cam_distance=None,
+        cam_yaw=None,
+        cam_pitch=None,
+        cam_target_position=None,
+        max_joint_velocities=None,
+        robot_model=None,
+        robot_pos=None,
+        table_model=None,
+        table_pos=None,
+    ):
 
         # PyBullet camera settings for visualisation and RGB array rendering
         self.cam_distance = cam_distance or 1.5
@@ -34,7 +47,10 @@ class BulletRobotEnv(gym.Env):
         self.cam_target_position = cam_target_position or (0.0, 0.0, 0.0)
 
         self.control_mode = control_mode
-        assert self.control_mode in {POS_CTRL, VEL_CTRL}, f"unknown control mode {self.control_mode}"
+        assert self.control_mode in {
+            POS_CTRL,
+            VEL_CTRL,
+        }, f"unknown control mode {self.control_mode}"
 
         if show_gui:
             self.client_id = p.connect(p.SHARED_MEMORY)
@@ -46,15 +62,17 @@ class BulletRobotEnv(gym.Env):
             p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 0)
 
             # set camera view
-            p.resetDebugVisualizerCamera(self.cam_distance,
-                                         self.cam_yaw,
-                                         self.cam_pitch,
-                                         self.cam_target_position)
+            p.resetDebugVisualizerCamera(
+                self.cam_distance,
+                self.cam_yaw,
+                self.cam_pitch,
+                self.cam_target_position,
+            )
         else:
             self.client_id = p.connect(p.DIRECT)
         self.show_gui = show_gui
 
-        self.dt = 1./240. # don't change; pybullet is tuned for this value
+        self.dt = 1.0 / 240.0  # don't change; pybullet is tuned for this value
         self.joints = joints
         self.num_joints = len(joints)
         self.initial_state = list(zip(self.joints, initial_state))
@@ -66,15 +84,15 @@ class BulletRobotEnv(gym.Env):
 
         # current state
         self.current_pos = np.array(initial_state)
-        self.current_vel = np.array(self.num_joints*[0.0])
-        self.current_acc = np.array(self.num_joints*[0.0])
+        self.current_vel = np.array(self.num_joints * [0.0])
+        self.current_acc = np.array(self.num_joints * [0.0])
 
         self.last_pos = initial_state
-        self.last_vel = np.array(self.num_joints*[0.0])
-        self.last_acc = np.array(self.num_joints*[0.0])
+        self.last_vel = np.array(self.num_joints * [0.0])
+        self.last_acc = np.array(self.num_joints * [0.0])
 
-        self.desired_action = np.array(self.num_joints*[0.0])
-        self.desired_action_clip = np.array(self.num_joints*[0.0])
+        self.desired_action = np.array(self.num_joints * [0.0])
+        self.desired_action_clip = np.array(self.num_joints * [0.0])
 
         self.uli = 0.045
         self.lli = 0.0
@@ -95,10 +113,12 @@ class BulletRobotEnv(gym.Env):
             action_high = 0.045
         elif self.control_mode == VEL_CTRL:
             action_high = 0.08
-        self.action_space = spaces.Box(-action_high, action_high, shape=(self.n_actions,), dtype='float32')
+        self.action_space = spaces.Box(
+            -action_high, action_high, shape=(self.n_actions,), dtype="float32"
+        )
 
         high = 5
-        self.observation_space = spaces.Box(-high, high, shape=obs.shape, dtype='float32')
+        self.observation_space = spaces.Box(-high, high, shape=obs.shape, dtype="float32")
 
     # Env methods
     # ----------------------------
@@ -122,13 +142,13 @@ class BulletRobotEnv(gym.Env):
         self._step_callback()
 
         self.current_pos, self.current_vel = self._get_joint_states()
-        self.current_acc = (self.last_vel-self.current_vel)
+        self.current_acc = self.last_vel - self.current_vel
 
         obs = self._get_obs()
         reward = self._compute_reward()
         done = False
         info = {
-            'is_success': self._is_success(), # used by the HER algorithm
+            "is_success": self._is_success(),  # used by the HER algorithm
         }
         return obs, reward, done, info
 
@@ -149,22 +169,26 @@ class BulletRobotEnv(gym.Env):
         https://github.com/robotology-playground/pybullet-robot-envs/blob/master/pybullet_robot_envs/envs/icub_envs/icub_reach_gym_env.py#L267
         """
 
-        view_matrix = p.computeViewMatrixFromYawPitchRoll(roll=0,
-                                                          yaw=self.cam_yaw,
-                                                          pitch=self.cam_pitch,
-                                                          distance=self.cam_distance,
-                                                          upAxisIndex=2,
-                                                          cameraTargetPosition=self.cam_target_position)
+        view_matrix = p.computeViewMatrixFromYawPitchRoll(
+            roll=0,
+            yaw=self.cam_yaw,
+            pitch=self.cam_pitch,
+            distance=self.cam_distance,
+            upAxisIndex=2,
+            cameraTargetPosition=self.cam_target_position,
+        )
 
-        proj_matrix = p.computeProjectionMatrixFOV(fov=60,
-                                                   nearVal=0.1,
-                                                   farVal=100.0,
-                                                   aspect=float(width) / height)
+        proj_matrix = p.computeProjectionMatrixFOV(
+            fov=60, nearVal=0.1, farVal=100.0, aspect=float(width) / height
+        )
 
-        (_, _, px, _, _) = p.getCameraImage(width=width, height=height,
-                                            viewMatrix=view_matrix,
-                                            projectionMatrix=proj_matrix,
-                                            renderer=p.ER_BULLET_HARDWARE_OPENGL)
+        (_, _, px, _, _) = p.getCameraImage(
+            width=width,
+            height=height,
+            viewMatrix=view_matrix,
+            projectionMatrix=proj_matrix,
+            renderer=p.ER_BULLET_HARDWARE_OPENGL,
+        )
 
         rgb_array = np.array(px, dtype=np.uint8)
         rgb_array = np.reshape(rgb_array, (height, width, 4))
@@ -173,8 +197,7 @@ class BulletRobotEnv(gym.Env):
         return rgb_array
 
     def close(self):
-        """Cleanup sim.
-        """
+        """Cleanup sim."""
         p.disconnect()
 
     # Extension methods
@@ -186,7 +209,12 @@ class BulletRobotEnv(gym.Env):
         p.loadURDF("plane.urdf", basePosition=[0.0, 0.0, -0.01])
 
         # set asset directory to local asset directory
-        p.setAdditionalSearchPath(os.path.join(sys.modules['tiago_rl'].__path__[0], 'assets', ))
+        p.setAdditionalSearchPath(
+            os.path.join(
+                sys.modules["tiago_rl"].__path__[0],
+                "assets",
+            )
+        )
 
         if not self.robot_model:
             print("Robot model path missing!")
@@ -206,8 +234,7 @@ class BulletRobotEnv(gym.Env):
             self.table_link_to_index = link_to_idx(self.tableId)
 
     def _reset_sim(self):
-        """Resets a simulation and indicates whether or not it was successful.
-        """
+        """Resets a simulation and indicates whether or not it was successful."""
 
         # reset bullet
         p.resetSimulation()
@@ -231,13 +258,11 @@ class BulletRobotEnv(gym.Env):
         self._reset_state(initial_state)
 
     def _step_sim(self):
-        """Steps one timestep.
-        """
+        """Steps one timestep."""
         p.stepSimulation()
 
     def _set_action(self, action):
-        """Applies the given action to the simulation. Assumes clipped actions.
-        """
+        """Applies the given action to the simulation. Assumes clipped actions."""
         # copy for plotting
         self.desired_action = action.copy()
 
@@ -245,49 +270,47 @@ class BulletRobotEnv(gym.Env):
             for i, [jn, act] in enumerate(zip(self.joints, action)):
                 ji = self.jn2Idx[jn]
                 if self.control_mode == POS_CTRL:
-                    p.setJointMotorControl2(bodyUniqueId=self.robotId,
-                                            jointIndex=ji,
-                                            controlMode=p.POSITION_CONTROL,
-                                            targetPosition=act)
+                    p.setJointMotorControl2(
+                        bodyUniqueId=self.robotId,
+                        jointIndex=ji,
+                        controlMode=p.POSITION_CONTROL,
+                        targetPosition=act,
+                    )
                 elif self.control_mode == VEL_CTRL:
-                    p.setJointMotorControl2(bodyUniqueId=self.robotId,
-                                            jointIndex=ji,
-                                            controlMode=p.VELOCITY_CONTROL,
-                                            targetVelocity=act)
+                    p.setJointMotorControl2(
+                        bodyUniqueId=self.robotId,
+                        jointIndex=ji,
+                        controlMode=p.VELOCITY_CONTROL,
+                        targetVelocity=act,
+                    )
         else:
             print("Environment has no joints specified!")
 
     def _get_obs(self):
-        """Returns the observation.
-        """
+        """Returns the observation."""
         pos, vel = self._get_joint_states()
         return np.concatenate([pos, vel])
 
     def _compute_reward(self):
-        """Returns the reward for this timestep.
-        """
+        """Returns the reward for this timestep."""
         raise NotImplementedError()
 
     def _is_success(self):
-        """Indicates whether or not the achieved goal successfully achieved the desired goal.
-        """
+        """Indicates whether or not the achieved goal successfully achieved the desired goal."""
         raise NotImplementedError()
 
     def _step_callback(self):
         """A custom callback that is called after stepping the simulation. Can be used
         to enforce additional constraints on the simulation state.
         """
-        pass
 
     def _reset_callback(self):
         """A custom callback that is called after resetting the simulation. Can be used
         to randomize certain environment properties.
         """
-        pass
 
     def _transform_forces(self, force):
-        """Transformations to forces can be applied here (e.g. add noise,
-        """
+        """Transformations to forces can be applied here (e.g. add noise,"""
         return force
 
     # PyBullet Wrapper
@@ -300,11 +323,13 @@ class BulletRobotEnv(gym.Env):
 
             if self.max_joint_velocities:
                 for j, max_vel in self.max_joint_velocities.items():
-                    p.changeDynamics(bodyUniqueId=self.robotId,
-                                     linkIndex=self.jn2Idx[j],
-                                     maxJointVelocity=max_vel,
-                                     jointLowerLimit=0.0,
-                                     jointUpperLimit=0.045)
+                    p.changeDynamics(
+                        bodyUniqueId=self.robotId,
+                        linkIndex=self.jn2Idx[j],
+                        maxJointVelocity=max_vel,
+                        jointLowerLimit=0.0,
+                        jointUpperLimit=0.045,
+                    )
 
     def _set_joint_pos(self, joint_idx, joint_pos):
         if self.robotId:
@@ -320,10 +345,7 @@ class BulletRobotEnv(gym.Env):
 
     def _get_contact_force(self, bodyA, bodyB, linkA, linkB):
         if self.robotId:
-            cps = p.getContactPoints(bodyA=bodyA,
-                                     bodyB=bodyB,
-                                     linkIndexA=linkA,
-                                     linkIndexB=linkB)
+            cps = p.getContactPoints(bodyA=bodyA, bodyB=bodyB, linkIndexA=linkA, linkIndexB=linkB)
             f_raw = self._calculate_force(cps)
             return self._transform_forces(f_raw), f_raw > 0.0
         else:
@@ -339,8 +361,7 @@ class BulletRobotEnv(gym.Env):
         return np.array(pos), np.array(vel)
 
     def create_desired_state(self, des_qs):
-        """Creates a complete desired joint state from a partial one.
-        """
+        """Creates a complete desired joint state from a partial one."""
         ds = self.desired_action.copy()
 
         for jn, des_q in des_qs.items():

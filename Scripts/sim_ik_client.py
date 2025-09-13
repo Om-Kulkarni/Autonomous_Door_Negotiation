@@ -8,14 +8,14 @@
   - Sends the computed joint values over TCP socket using `pickle`.
 """
 
-import pybullet as p
-import pybullet_data
-import time
 import os
-import numpy as np
+import pickle
 import socket
 import struct
-import pickle
+import time
+
+import pybullet as p
+import pybullet_data
 import pygame
 
 # Define robot joint indices based on discovery
@@ -24,14 +24,14 @@ ARM_INDICES = [31, 32, 33, 34, 35, 36, 37]  # arm_1 to arm_7 joints
 
 # Set initial joint positions to match default positions
 INITIAL_POSITIONS = {
-    21: 0.30,    # torso_lift_joint
-    31: 1.61,    # arm_1_joint
-    32: -0.93,   # arm_2_joint
-    33: -3.14,   # arm_3_joint
-    34: 1.83,    # arm_4_joint
-    35: -1.58,   # arm_5_joint
-    36: -0.62,   # arm_6_joint
-    37: -1.58    # arm_7_joint
+    21: 0.30,  # torso_lift_joint
+    31: 1.61,  # arm_1_joint
+    32: -0.93,  # arm_2_joint
+    33: -3.14,  # arm_3_joint
+    34: 1.83,  # arm_4_joint
+    35: -1.58,  # arm_5_joint
+    36: -0.62,  # arm_6_joint
+    37: -1.58,  # arm_7_joint
 }
 
 # Initial Gripper Positions
@@ -57,7 +57,8 @@ SERVER_IP = "10.68.0.1"  # Replace with robot IP
 SERVER_PORT = 65432
 USE_REAL_ROBOT = True
 
-def send_joint_command(sock, torso, arm_joints,  lin_vel_x, ang_vel_z, gripper_command):
+
+def send_joint_command(sock, torso, arm_joints, lin_vel_x, ang_vel_z, gripper_command):
     """
     @brief Sends torso + arm joint commands to the robot over TCP socket.
     @param sock: The socket object
@@ -73,16 +74,17 @@ def send_joint_command(sock, torso, arm_joints,  lin_vel_x, ang_vel_z, gripper_c
     message = [torso] + arm_joints + [lin_vel_x, ang_vel_z, gripper_command]
     payload = pickle.dumps(message, protocol=2)
     # Prefix payload with its length as a 4-byte unsigned integer
-    header = struct.pack('>I', len(payload))
+    header = struct.pack(">I", len(payload))
 
     try:
         sock.sendall(header + payload)  # Use protocol=2 for Python2 compatibility
     except Exception as e:
         print(f"⚠️ Socket send failed: {e}")
 
+
 def main():
     # 1. Connect to PyBullet
-    physicsClient = p.connect(p.GUI)
+    p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
     p.loadURDF("plane.urdf")
@@ -93,7 +95,9 @@ def main():
         print(f"URDF file not found: {urdf_path}")
         return
 
-    robotId = p.loadURDF(urdf_path, [0, 0, 0.1], p.getQuaternionFromEuler([0, 0, 0]), useFixedBase=True)
+    robotId = p.loadURDF(
+        urdf_path, [0, 0, 0.1], p.getQuaternionFromEuler([0, 0, 0]), useFixedBase=True
+    )
     print("✅ Tiago loaded")
 
     # Initialize Pygame and the joystick
@@ -119,7 +123,6 @@ def main():
             print(f"⚠️ Failed to connect to robot: {e}")
             client_socket = None
 
-
     # 3. Increase mass for stability
     for link_id in range(-1, p.getNumJoints(robotId)):
         m = p.getDynamicsInfo(robotId, link_id)[0]
@@ -140,11 +143,13 @@ def main():
     if gripper_joint_indices:
         print("✅ Setting initial gripper position to OPEN.")
         for joint_id in gripper_joint_indices:
-            p.setJointMotorControl2(robotId, joint_id, p.POSITION_CONTROL, GRIPPER_OPEN_VALUE, force=50)
+            p.setJointMotorControl2(
+                robotId, joint_id, p.POSITION_CONTROL, GRIPPER_OPEN_VALUE, force=50
+            )
 
     for i in range(numJoints):
         info = p.getJointInfo(robotId, i)
-        name = info[1].decode('utf-8')
+        name = info[1].decode("utf-8")
         jointType = info[2]
 
         if name == "arm_tool_joint":
@@ -165,16 +170,16 @@ def main():
     # Create mapping from joint indices to IK solution indices
     torso_ik_index = None
     arm_ik_indices = []
-    
+
     for ik_idx, joint_id in enumerate(jointIds):
         if joint_id == TORSO_INDEX:
             torso_ik_index = ik_idx
         elif joint_id in ARM_INDICES:
             arm_ik_indices.append((ik_idx, joint_id))
-    
+
     # Sort arm indices to maintain order
     arm_ik_indices.sort(key=lambda x: x[1])  # Sort by joint_id
-    
+
     print(f"✅ Torso IK index: {torso_ik_index}")
     print(f"✅ Arm IK indices: {arm_ik_indices}")
 
@@ -201,7 +206,7 @@ def main():
     # print("✅ Sliders ready")
 
     # Initialize control state variables
-    control_mode = 'BASE'  # Start in Base Control mode
+    control_mode = "BASE"  # Start in Base Control mode
     target_pos = initial_ee_pos
     target_euler = initial_euler
     print(f"✅ Starting in '{control_mode}' mode. Press SELECT to toggle.")
@@ -214,25 +219,25 @@ def main():
             # Initialize velocities for this loop iteration
             lin_vel_x, ang_vel_z = 0.0, 0.0
             d_pos = [0, 0, 0]  # Change in position [dx, dy, dz]
-            d_euler = [0, 0, 0] # Change in orientation [droll, dpitch, dyaw]
-            gripper_command = 0 # 0: no-op, 1: open, 2: close
+            d_euler = [0, 0, 0]  # Change in orientation [droll, dpitch, dyaw]
+            gripper_command = 0  # 0: no-op, 1: open, 2: close
 
             # --- Process Pygame Events for Mode Switching ---
             if joystick:
                 for event in pygame.event.get():
                     if event.type == pygame.JOYBUTTONDOWN:
                         if event.button == BUTTON_SELECT:
-                            control_mode = 'ARM' if control_mode == 'BASE' else 'BASE'
+                            control_mode = "ARM" if control_mode == "BASE" else "BASE"
                             print(f"\n-- MODE SWITCH: {control_mode} CONTROL --")
-                        if control_mode == 'ARM':
-                            if event.button == BUTTON_CIRCLE: # Open
+                        if control_mode == "ARM":
+                            if event.button == BUTTON_CIRCLE:  # Open
                                 gripper_command = 1
-                            if event.button == BUTTON_SQUARE: # Close
+                            if event.button == BUTTON_SQUARE:  # Close
                                 gripper_command = 2
 
             # --- Apply Control Logic Based on Current Mode ---
             if joystick:
-                if control_mode == 'BASE':
+                if control_mode == "BASE":
                     # --- BASE CONTROL MODE ---
                     # Left Stick for base velocity
                     lin_vel_raw = -joystick.get_axis(AXIS_LEFT_STICK_Y)
@@ -243,37 +248,43 @@ def main():
                     if abs(ang_vel_raw) > dead_zone:
                         ang_vel_z = ang_vel_raw * 0.3
 
-                elif control_mode == 'ARM':
+                elif control_mode == "ARM":
                     # --- ARM CONTROL MODE ---
                     # Base is stationary
                     lin_vel_x, ang_vel_z = 0.0, 0.0
 
                     # Left Stick for EE Pos (X, Y)
-                    dx_raw = -joystick.get_axis(AXIS_LEFT_STICK_Y) # Fwd/Back
-                    dy_raw = -joystick.get_axis(AXIS_LEFT_STICK_X) # Left/Right
-                    if abs(dx_raw) > dead_zone: d_pos[0] = dx_raw
-                    if abs(dy_raw) > dead_zone: d_pos[1] = dy_raw
-                    
+                    dx_raw = -joystick.get_axis(AXIS_LEFT_STICK_Y)  # Fwd/Back
+                    dy_raw = -joystick.get_axis(AXIS_LEFT_STICK_X)  # Left/Right
+                    if abs(dx_raw) > dead_zone:
+                        d_pos[0] = dx_raw
+                    if abs(dy_raw) > dead_zone:
+                        d_pos[1] = dy_raw
+
                     # Triangle/Cross for EE Pos (Z)
-                    if joystick.get_button(BUTTON_TRIANGLE): d_pos[2] = 1.0  # Up
-                    if joystick.get_button(BUTTON_CROSS): d_pos[2] = -1.0 # Down
+                    if joystick.get_button(BUTTON_TRIANGLE):
+                        d_pos[2] = 1.0  # Up
+                    if joystick.get_button(BUTTON_CROSS):
+                        d_pos[2] = -1.0  # Down
 
                     # Right Stick for EE Orient (Pitch, Yaw)
-                    dpitch_raw = joystick.get_axis(AXIS_RIGHT_STICK_Y) # Nod
-                    dyaw_raw = -joystick.get_axis(AXIS_RIGHT_STICK_X)   # Turn
-                    if abs(dpitch_raw) > dead_zone: d_euler[1] = dpitch_raw
-                    if abs(dyaw_raw) > dead_zone: d_euler[2] = dyaw_raw
-                    
+                    dpitch_raw = joystick.get_axis(AXIS_RIGHT_STICK_Y)  # Nod
+                    dyaw_raw = -joystick.get_axis(AXIS_RIGHT_STICK_X)  # Turn
+                    if abs(dpitch_raw) > dead_zone:
+                        d_euler[1] = dpitch_raw
+                    if abs(dyaw_raw) > dead_zone:
+                        d_euler[2] = dyaw_raw
+
                     # L2/R2 for EE Orient (Roll) using analog axes
                     # Raw axis values are -1.0 (rest) to 1.0 (fully pressed).
                     # We convert them to a 0.0 to 1.0 pressure scale.
                     r2_pressure = (joystick.get_axis(AXIS_R2) + 1) / 2
                     l2_pressure = (joystick.get_axis(AXIS_L2) + 1) / 2
-                    d_euler[0] = r2_pressure - l2_pressure # R2 adds, L2 subtracts
+                    d_euler[0] = r2_pressure - l2_pressure  # R2 adds, L2 subtracts
 
             # --- Update Target Pose Incrementally ---
             arm_speed = 0.005  # Position change speed
-            rot_speed = 0.01   # Rotation change speed
+            rot_speed = 0.01  # Rotation change speed
             target_pos[0] += d_pos[0] * arm_speed
             target_pos[1] += d_pos[1] * arm_speed
             target_pos[2] += d_pos[2] * arm_speed
@@ -283,17 +294,25 @@ def main():
 
             # Print status
             status_str = f"Mode: {control_mode} | LinVel: {lin_vel_x:.2f} | AngVel: {ang_vel_z:.2f}"
-            print(status_str, end='\r')
+            print(status_str, end="\r")
 
             # --- IK and Simulation (largely unchanged) ---
             orn = p.getQuaternionFromEuler(target_euler)
 
             ik_solution = p.calculateInverseKinematics(
-                robotId, ee_link_index, target_pos, targetOrientation=orn,
-                maxNumIterations=100, residualThreshold=1e-4
+                robotId,
+                ee_link_index,
+                target_pos,
+                targetOrientation=orn,
+                maxNumIterations=100,
+                residualThreshold=1e-4,
             )
 
-            torso = ik_solution[torso_ik_index] if torso_ik_index is not None and torso_ik_index < len(ik_solution) else 0.0
+            torso = (
+                ik_solution[torso_ik_index]
+                if torso_ik_index is not None and torso_ik_index < len(ik_solution)
+                else 0.0
+            )
 
             arm_joint_positions = []
             for ik_idx, joint_id in arm_ik_indices:
@@ -302,31 +321,51 @@ def main():
                 else:
                     arm_joint_positions.append(0.0)
 
-            if len(arm_joint_positions) != 7: continue
+            if len(arm_joint_positions) != 7:
+                continue
 
             if torso_ik_index is not None:
                 p.setJointMotorControl2(robotId, TORSO_INDEX, p.POSITION_CONTROL, torso, force=1000)
-            
-            for i, (ik_idx, joint_id) in enumerate(arm_ik_indices):
-                p.setJointMotorControl2(robotId, joint_id, p.POSITION_CONTROL, arm_joint_positions[i], force=1000)
 
-            if gripper_command == 1: # OPEN
+            for i, (ik_idx, joint_id) in enumerate(arm_ik_indices):
+                p.setJointMotorControl2(
+                    robotId,
+                    joint_id,
+                    p.POSITION_CONTROL,
+                    arm_joint_positions[i],
+                    force=1000,
+                )
+
+            if gripper_command == 1:  # OPEN
                 for joint_id in gripper_joint_indices:
-                    p.setJointMotorControl2(robotId, joint_id, p.POSITION_CONTROL, GRIPPER_OPEN_VALUE, force=50)
-            elif gripper_command == 2: # CLOSE
+                    p.setJointMotorControl2(
+                        robotId,
+                        joint_id,
+                        p.POSITION_CONTROL,
+                        GRIPPER_OPEN_VALUE,
+                        force=50,
+                    )
+            elif gripper_command == 2:  # CLOSE
                 for joint_id in gripper_joint_indices:
                     p.setJointMotorControl2(robotId, joint_id, p.POSITION_CONTROL, 0.0, force=50)
 
-            send_joint_command(client_socket, torso, arm_joint_positions, lin_vel_x, ang_vel_z, gripper_command)
+            send_joint_command(
+                client_socket,
+                torso,
+                arm_joint_positions,
+                lin_vel_x,
+                ang_vel_z,
+                gripper_command,
+            )
 
-            if marker_id is not None: p.removeUserDebugItem(marker_id)
+            if marker_id is not None:
+                p.removeUserDebugItem(marker_id)
             z_axis = p.getMatrixFromQuaternion(orn)[6:]
             end_point = [target_pos[i] + z_axis[i] * 0.1 for i in range(3)]
             marker_id = p.addUserDebugLine(target_pos, end_point, [0, 0, 1], 3, 0.05)
 
             p.stepSimulation()
-            time.sleep(1 / 240.)
-
+            time.sleep(1 / 240.0)
 
     except KeyboardInterrupt:
         print("👋 Simulation terminated.")
@@ -334,6 +373,7 @@ def main():
     finally:
         p.disconnect()
         pygame.quit()
+
 
 if __name__ == "__main__":
     main()

@@ -1,16 +1,10 @@
-import pybullet as p
-import pybullet_data
-import time
 import os
-
-import logging
 import time
-from dataclasses import asdict, dataclass
-from pprint import pformat
+from dataclasses import dataclass
 
 import draccus
-import rerun as rr
-
+import pybullet as p
+import pybullet_data
 from lerobot.teleoperators import (  # noqa: F401
     Teleoperator,
     TeleoperatorConfig,
@@ -23,7 +17,6 @@ from lerobot.teleoperators import (  # noqa: F401
     so101_leader,
 )
 
-from lerobot.utils.robot_utils import busy_wait
 
 @dataclass
 class LeaderConfig:
@@ -31,41 +24,60 @@ class LeaderConfig:
 
 
 def teleop_loop(teleop: Teleoperator):
-    min_range = {'shoulder_pan.pos': 0, 'shoulder_lift.pos': -1.57, 'elbow_flex.pos': -0.39, 'wrist_flex.pos': -1.414, 'wrist_roll.pos': -2.094, 'gripper.pos': 0.0}
-    max_range = {'shoulder_pan.pos': 2.74, 'shoulder_lift.pos': 1.09, 'elbow_flex.pos': 2.35, 'wrist_flex.pos': 1.414, 'wrist_roll.pos': 2.094, 'gripper.pos': 0.45}
+    min_range = {
+        "shoulder_pan.pos": 0,
+        "shoulder_lift.pos": -1.57,
+        "elbow_flex.pos": -0.39,
+        "wrist_flex.pos": -1.414,
+        "wrist_roll.pos": -2.094,
+        "gripper.pos": 0.0,
+    }
+    max_range = {
+        "shoulder_pan.pos": 2.74,
+        "shoulder_lift.pos": 1.09,
+        "elbow_flex.pos": 2.35,
+        "wrist_flex.pos": 1.414,
+        "wrist_roll.pos": 2.094,
+        "gripper.pos": 0.45,
+    }
 
     action = teleop.get_action()
 
     new_action = {}
     for k, v in action.items():
-        if k == 'shoulder_pan.pos' or k=='wrist_roll.pos' or k=='elbow_flex.pos':
-            new_action[k] = max_range[k] - (((v+100.0)/200.0)*(max_range[k]-min_range[k]) + min_range[k])
-        elif k != 'gripper.pos':
-            new_action[k] = ((v+100.0)/200.0)*(max_range[k]-min_range[k]) + min_range[k]
+        if k == "shoulder_pan.pos" or k == "wrist_roll.pos" or k == "elbow_flex.pos":
+            new_action[k] = max_range[k] - (
+                ((v + 100.0) / 200.0) * (max_range[k] - min_range[k]) + min_range[k]
+            )
+        elif k != "gripper.pos":
+            new_action[k] = ((v + 100.0) / 200.0) * (max_range[k] - min_range[k]) + min_range[k]
         else:
-            new_action[k] = ((v)/100.0)*(max_range[k]-min_range[k]) + min_range[k]
-    action_for_robot = {'arm_1_joint': new_action['shoulder_pan.pos'],
-                        'arm_2_joint': new_action['shoulder_lift.pos'],
-                        'arm_4_joint': new_action['elbow_flex.pos'],
-                        'arm_6_joint': new_action['wrist_flex.pos'],
-                        'arm_7_joint': new_action['wrist_roll.pos'],
-                        'gripper_right_finger_joint': new_action['gripper.pos']}
+            new_action[k] = ((v) / 100.0) * (max_range[k] - min_range[k]) + min_range[k]
+    action_for_robot = {
+        "arm_1_joint": new_action["shoulder_pan.pos"],
+        "arm_2_joint": new_action["shoulder_lift.pos"],
+        "arm_4_joint": new_action["elbow_flex.pos"],
+        "arm_6_joint": new_action["wrist_flex.pos"],
+        "arm_7_joint": new_action["wrist_roll.pos"],
+        "gripper_right_finger_joint": new_action["gripper.pos"],
+    }
     return action_for_robot
- 
+
+
 @draccus.wrap()
 def main(cfg: LeaderConfig):
     # Connect to PyBullet
-    physicsClient = p.connect(p.GUI)
+    p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     teleop = make_teleoperator_from_config(cfg.teleop)
     teleop.connect()
     # Set up the simulation
     p.setGravity(0, 0, -9.81)
-    planeId = p.loadURDF("plane.urdf")
-    
+    p.loadURDF("plane.urdf")
+
     # Load the TiAGO robot
     urdf_path = "tiago_rl/assets/tiago_pal_gripper.urdf"
-    
+
     if not os.path.exists(urdf_path):
         print(f"URDF file not found at: {urdf_path}")
         print("Current working directory:", os.getcwd())
@@ -73,7 +85,7 @@ def main(cfg: LeaderConfig):
 
     startPos = [0, 0, 0.1]
     startOrientation = p.getQuaternionFromEuler([0, 0, 0])
-    
+
     try:
         robotId = p.loadURDF(urdf_path, startPos, startOrientation, useFixedBase=False)
         print(f"Successfully loaded TiAGO robot with ID: {robotId}")
@@ -92,7 +104,7 @@ def main(cfg: LeaderConfig):
 
     for i in range(numJoints):
         jointInfo = p.getJointInfo(robotId, i)
-        jointName = jointInfo[1].decode('utf-8')
+        jointName = jointInfo[1].decode("utf-8")
         jointType = jointInfo[2]
 
         if jointName == "gripper_joint":
@@ -110,7 +122,9 @@ def main(cfg: LeaderConfig):
                 print(f"Joint {i}: {jointName}, Range: [{lowerLimit:.3f}, {upperLimit:.3f}]")
 
     paramIds = []
-    for i, (jointId, jointName, (lower, upper)) in enumerate(zip(jointIds, jointNames, jointRanges)):
+    for i, (jointId, jointName, (lower, upper)) in enumerate(
+        zip(jointIds, jointNames, jointRanges)
+    ):
         if i < 20:
             paramId = p.addUserDebugParameter(jointName, lower, upper, (lower + upper) / 2)
             paramIds.append(paramId)
@@ -120,7 +134,9 @@ def main(cfg: LeaderConfig):
     print(f"Created {len([p for p in paramIds if p is not None])} sliders")
 
     if ee_link_index is None:
-        print("⚠️ Could not find the end-effector link 'gripper_link'. Make sure the name is correct.")
+        print(
+            "⚠️ Could not find the end-effector link 'gripper_link'. Make sure the name is correct."
+        )
         return
 
     ee_marker_id = None
@@ -129,28 +145,28 @@ def main(cfg: LeaderConfig):
         while True:
             # Set joint positions from sliders
             lerobot_action = teleop_loop(teleop)
-            print("action:",lerobot_action)
-            #print(jointIds)
-            #print(paramIds)
-            #print(jointNames)
+            print("action:", lerobot_action)
+            # print(jointIds)
+            # print(paramIds)
+            # print(jointNames)
             for i, (jointId, paramId) in enumerate(zip(jointIds, paramIds)):
                 if paramId is not None:
                     targetPos = p.readUserDebugParameter(paramId)
                     if jointNames[i] in lerobot_action:
                         print("EXIST")
                         targetPos = lerobot_action[jointNames[i]]
-                    #print(type(targetPos))
+                    # print(type(targetPos))
                     p.setJointMotorControl2(
                         robotId,
                         jointId,
                         p.POSITION_CONTROL,
                         targetPosition=targetPos,
-                        force=500
+                        force=500,
                     )
 
             # Step simulation
             p.stepSimulation()
-            time.sleep(1. / 240.)
+            time.sleep(1.0 / 240.0)
 
             # --- Get and print end-effector position ---
             link_state = p.getLinkState(robotId, ee_link_index)
@@ -163,17 +179,18 @@ def main(cfg: LeaderConfig):
             if ee_marker_id is not None:
                 p.removeUserDebugItem(ee_marker_id)
             ee_marker_id = p.addUserDebugLine(
-                ee_position, 
+                ee_position,
                 [ee_position[0], ee_position[1], ee_position[2] + 0.1],
                 [0, 1, 0],  # green
                 lineWidth=5,
-                lifeTime=0.05
+                lifeTime=0.05,
             )
 
     except KeyboardInterrupt:
         print("Simulation stopped by user")
     finally:
         p.disconnect()
+
 
 if __name__ == "__main__":
     main()

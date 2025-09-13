@@ -1,22 +1,25 @@
 import socket
-from PIL import Image
-import numpy as np
 import struct
 import time
 
+import numpy as np
+from PIL import Image
+
+
 def recvall(sock, n):
     """Helper to receive exactly n bytes from socket."""
-    data = b''
+    data = b""
     while len(data) < n:
         packet = sock.recv(n - len(data))
         if not packet:
             raise ConnectionError("Connection lost during transfer.")
-        
+
         data += packet
         print(len(data))
     return data
 
-LISTEN_IP = '0.0.0.0'
+
+LISTEN_IP = "0.0.0.0"
 PORT = 5004
 WIDTH, HEIGHT = 640, 480  # Must match sender's image dimensions
 
@@ -32,7 +35,7 @@ start_time = time.time()
 
 # Step 1: Receive 4-byte length header
 header = recvall(conn, 4)
-image_size = struct.unpack('>I', header)[0]
+image_size = struct.unpack(">I", header)[0]
 print(f"Receiving image of size: {image_size} bytes")
 
 # Step 2: Receive full image data
@@ -41,7 +44,7 @@ image_data = recvall(conn, image_size)
 # Step 3: Convert to image
 arr = np.frombuffer(image_data, dtype=np.uint8).reshape((HEIGHT, WIDTH, 3))
 img = Image.fromarray(arr)
-img.save('received_image.png')
+img.save("received_image.png")
 
 print(f"Image saved as received_image.png in {time.time() - start_time:.2f} seconds")
 

@@ -1,20 +1,22 @@
+import os
+import time
+
 import pybullet as p
 import pybullet_data
-import time
-import os
+
 
 def main():
     # Connect to PyBullet
-    physicsClient = p.connect(p.GUI)
+    p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
-    
+
     # Set up the simulation
     p.setGravity(0, 0, -9.81)
-    planeId = p.loadURDF("plane.urdf")
-    
+    p.loadURDF("plane.urdf")
+
     # Load the TiAGO robot
     urdf_path = "tiago_rl/assets/tiago_pal_gripper.urdf"
-    
+
     if not os.path.exists(urdf_path):
         print(f"URDF file not found at: {urdf_path}")
         print("Current working directory:", os.getcwd())
@@ -22,7 +24,7 @@ def main():
 
     startPos = [0, 0, 0.1]
     startOrientation = p.getQuaternionFromEuler([0, 0, 0])
-    
+
     try:
         robotId = p.loadURDF(urdf_path, startPos, startOrientation, useFixedBase=False)
         print(f"Successfully loaded TiAGO robot with ID: {robotId}")
@@ -41,7 +43,7 @@ def main():
 
     for i in range(numJoints):
         jointInfo = p.getJointInfo(robotId, i)
-        jointName = jointInfo[1].decode('utf-8')
+        jointName = jointInfo[1].decode("utf-8")
         jointType = jointInfo[2]
 
         if jointName == "gripper_joint":
@@ -59,7 +61,9 @@ def main():
                 print(f"Joint {i}: {jointName}, Range: [{lowerLimit:.3f}, {upperLimit:.3f}]")
 
     paramIds = []
-    for i, (jointId, jointName, (lower, upper)) in enumerate(zip(jointIds, jointNames, jointRanges)):
+    for i, (jointId, jointName, (lower, upper)) in enumerate(
+        zip(jointIds, jointNames, jointRanges)
+    ):
         if i < 20:
             paramId = p.addUserDebugParameter(jointName, lower, upper, (lower + upper) / 2)
             paramIds.append(paramId)
@@ -69,7 +73,9 @@ def main():
     print(f"Created {len([p for p in paramIds if p is not None])} sliders")
 
     if ee_link_index is None:
-        print("⚠️ Could not find the end-effector link 'gripper_link'. Make sure the name is correct.")
+        print(
+            "⚠️ Could not find the end-effector link 'gripper_link'. Make sure the name is correct."
+        )
         return
 
     ee_marker_id = None
@@ -85,12 +91,12 @@ def main():
                         jointId,
                         p.POSITION_CONTROL,
                         targetPosition=targetPos,
-                        force=500
+                        force=500,
                     )
 
             # Step simulation
             p.stepSimulation()
-            time.sleep(1. / 240.)
+            time.sleep(1.0 / 240.0)
 
             # --- Get and print end-effector position ---
             link_state = p.getLinkState(robotId, ee_link_index)
@@ -103,17 +109,18 @@ def main():
             if ee_marker_id is not None:
                 p.removeUserDebugItem(ee_marker_id)
             ee_marker_id = p.addUserDebugLine(
-                ee_position, 
+                ee_position,
                 [ee_position[0], ee_position[1], ee_position[2] + 0.1],
                 [0, 1, 0],  # green
                 lineWidth=5,
-                lifeTime=0.05
+                lifeTime=0.05,
             )
 
     except KeyboardInterrupt:
         print("Simulation stopped by user")
     finally:
         p.disconnect()
+
 
 if __name__ == "__main__":
     main()

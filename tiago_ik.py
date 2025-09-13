@@ -1,14 +1,13 @@
-import pybullet as p
-import pybullet_data
-import time
 import os
+import time
+
 import numpy as np
 import pink
+import pinocchio as pin
+import pybullet as p
+import pybullet_data
 from pink import solve_ik
 from pink.tasks import FrameTask, PostureTask
-from pink.visualization import start_meshcat_visualizer
-import pinocchio as pin
-import qpsolvers
 
 
 class TiagoIKController:
@@ -31,7 +30,7 @@ class TiagoIKController:
 
         # Define important frame names (adjust based on your robot)
         self.end_effector_frame = "gripper_link"  # Adjust if needed
-        self.head_frame = "head_2_link"           # Optional
+        self.head_frame = "head_2_link"  # Optional
 
         # Store joint name to index mapping
         self.joint_name_to_id = {
@@ -46,24 +45,19 @@ class TiagoIKController:
 
         start_pos = [0, 0, 0.1]
         start_orientation = p.getQuaternionFromEuler([0, 0, 0])
-        self.robot_id = p.loadURDF(
-            self.urdf_path,
-            start_pos,
-            start_orientation,
-            useFixedBase=False
-        )
+        self.robot_id = p.loadURDF(self.urdf_path, start_pos, start_orientation, useFixedBase=False)
 
         print(f"Loaded TiAGO robot with ID: {self.robot_id}")
 
         self.pb_joint_info = {}
         for i in range(p.getNumJoints(self.robot_id)):
             joint_info = p.getJointInfo(self.robot_id, i)
-            joint_name = joint_info[1].decode('utf-8')
+            joint_name = joint_info[1].decode("utf-8")
             self.pb_joint_info[joint_name] = {
-                'id': i,
-                'type': joint_info[2],
-                'lower_limit': joint_info[8],
-                'upper_limit': joint_info[9]
+                "id": i,
+                "type": joint_info[2],
+                "lower_limit": joint_info[8],
+                "upper_limit": joint_info[9],
             }
 
     def setup_ik_tasks(self):
@@ -98,56 +92,62 @@ class TiagoIKController:
     def setup_gui_controls(self):
         self.gui_params = {}
 
-        self.gui_params['target_x'] = p.addUserDebugParameter("Target X", -2.0, 2.0, 0.5)
-        self.gui_params['target_y'] = p.addUserDebugParameter("Target Y", -2.0, 2.0, 0.0)
-        self.gui_params['target_z'] = p.addUserDebugParameter("Target Z", 0.0, 2.0, 0.5)
+        self.gui_params["target_x"] = p.addUserDebugParameter("Target X", -2.0, 2.0, 0.5)
+        self.gui_params["target_y"] = p.addUserDebugParameter("Target Y", -2.0, 2.0, 0.0)
+        self.gui_params["target_z"] = p.addUserDebugParameter("Target Z", 0.0, 2.0, 0.5)
 
-        self.gui_params['target_roll'] = p.addUserDebugParameter("Target Roll", -np.pi, np.pi, 0.0)
-        self.gui_params['target_pitch'] = p.addUserDebugParameter("Target Pitch", -np.pi, np.pi, 0.0)
-        self.gui_params['target_yaw'] = p.addUserDebugParameter("Target Yaw", -np.pi, np.pi, 0.0)
+        self.gui_params["target_roll"] = p.addUserDebugParameter("Target Roll", -np.pi, np.pi, 0.0)
+        self.gui_params["target_pitch"] = p.addUserDebugParameter(
+            "Target Pitch", -np.pi, np.pi, 0.0
+        )
+        self.gui_params["target_yaw"] = p.addUserDebugParameter("Target Yaw", -np.pi, np.pi, 0.0)
 
-        self.gui_params['head_pan'] = p.addUserDebugParameter("Head Pan", -1.5, 1.5, 0.0)
-        self.gui_params['head_tilt'] = p.addUserDebugParameter("Head Tilt", -1.0, 1.0, 0.0)
+        self.gui_params["head_pan"] = p.addUserDebugParameter("Head Pan", -1.5, 1.5, 0.0)
+        self.gui_params["head_tilt"] = p.addUserDebugParameter("Head Tilt", -1.0, 1.0, 0.0)
 
-        self.gui_params['ik_active'] = p.addUserDebugParameter("IK Active", 0, 1, 1)
-        self.gui_params['dt'] = p.addUserDebugParameter("dt", 0.001, 0.1, 0.01)
+        self.gui_params["ik_active"] = p.addUserDebugParameter("IK Active", 0, 1, 1)
+        self.gui_params["dt"] = p.addUserDebugParameter("dt", 0.001, 0.1, 0.01)
 
     def update_ik_targets(self):
-        if not hasattr(self, 'gui_params'):
+        if not hasattr(self, "gui_params"):
             return
 
-        target_pos = np.array([
-            p.readUserDebugParameter(self.gui_params['target_x']),
-            p.readUserDebugParameter(self.gui_params['target_y']),
-            p.readUserDebugParameter(self.gui_params['target_z'])
-        ])
+        target_pos = np.array(
+            [
+                p.readUserDebugParameter(self.gui_params["target_x"]),
+                p.readUserDebugParameter(self.gui_params["target_y"]),
+                p.readUserDebugParameter(self.gui_params["target_z"]),
+            ]
+        )
 
-        target_euler = np.array([
-            p.readUserDebugParameter(self.gui_params['target_roll']),
-            p.readUserDebugParameter(self.gui_params['target_pitch']),
-            p.readUserDebugParameter(self.gui_params['target_yaw'])
-        ])
+        target_euler = np.array(
+            [
+                p.readUserDebugParameter(self.gui_params["target_roll"]),
+                p.readUserDebugParameter(self.gui_params["target_pitch"]),
+                p.readUserDebugParameter(self.gui_params["target_yaw"]),
+            ]
+        )
 
         target_rotation = pin.rpy.rpyToMatrix(*target_euler)
         target_transform = pin.SE3(target_rotation, target_pos)
 
-        if hasattr(self, 'ee_task'):
-            print('EE task')
+        if hasattr(self, "ee_task"):
+            print("EE task")
             self.ee_task.set_target(target_transform)
 
-        if hasattr(self, 'head_task'):
-            print('Head task')
-            head_pan = p.readUserDebugParameter(self.gui_params['head_pan'])
-            head_tilt = p.readUserDebugParameter(self.gui_params['head_tilt'])
+        if hasattr(self, "head_task"):
+            print("Head task")
+            head_pan = p.readUserDebugParameter(self.gui_params["head_pan"])
+            head_tilt = p.readUserDebugParameter(self.gui_params["head_tilt"])
             head_rotation = pin.rpy.rpyToMatrix(0, head_tilt, head_pan)
             head_transform = pin.SE3(head_rotation, np.zeros(3))
             self.head_task.set_target(head_transform)
-        #print('Target')
-        #print(target_pos)
-        #print(target_rotation)
+        # print('Target')
+        # print(target_pos)
+        # print(target_rotation)
 
     def solve_ik_step(self):
-        dt = p.readUserDebugParameter(self.gui_params['dt'])
+        dt = p.readUserDebugParameter(self.gui_params["dt"])
 
         pin.forwardKinematics(self.model, self.data, self.q)
         pin.updateFramePlacements(self.model, self.data)
@@ -156,12 +156,12 @@ class TiagoIKController:
 
         try:
             self.posture_task.set_target(self.q)  # Optional: updates to current posture
-            velocity = solve_ik(self.configuration, self.tasks, dt,solver='quadprog')
-            #print(velocity)
-            #print(self.tasks)
+            velocity = solve_ik(self.configuration, self.tasks, dt, solver="quadprog")
+            # print(velocity)
+            # print(self.tasks)
             self.q = pin.integrate(self.model, self.q, velocity * dt)
             self.q = np.clip(self.q, self.q_min, self.q_max)
-            #print(self.q)
+            # print(self.q)
         except Exception as e:
             print(f"IK solve failed: {e}")
             return False
@@ -173,38 +173,46 @@ class TiagoIKController:
             if i < len(self.model.names) - 1:
                 joint_name = self.model.names[i + 1]
                 if joint_name in self.pb_joint_info:
-                    pb_joint_id = self.pb_joint_info[joint_name]['id']
-                    joint_type = self.pb_joint_info[joint_name]['type']
+                    pb_joint_id = self.pb_joint_info[joint_name]["id"]
+                    joint_type = self.pb_joint_info[joint_name]["type"]
                     if joint_type in [p.JOINT_REVOLUTE, p.JOINT_PRISMATIC]:
                         p.setJointMotorControl2(
                             self.robot_id,
                             pb_joint_id,
                             p.POSITION_CONTROL,
                             targetPosition=q_val,
-                            force=500
+                            force=500,
                         )
 
     def draw_target_frame(self):
-        if not hasattr(self, 'gui_params'):
+        if not hasattr(self, "gui_params"):
             return
 
-        target_pos = np.array([
-            p.readUserDebugParameter(self.gui_params['target_x']),
-            p.readUserDebugParameter(self.gui_params['target_y']),
-            p.readUserDebugParameter(self.gui_params['target_z'])
-        ])
+        target_pos = np.array(
+            [
+                p.readUserDebugParameter(self.gui_params["target_x"]),
+                p.readUserDebugParameter(self.gui_params["target_y"]),
+                p.readUserDebugParameter(self.gui_params["target_z"]),
+            ]
+        )
 
-        target_euler = np.array([
-            p.readUserDebugParameter(self.gui_params['target_roll']),
-            p.readUserDebugParameter(self.gui_params['target_pitch']),
-            p.readUserDebugParameter(self.gui_params['target_yaw'])
-        ])
+        target_euler = np.array(
+            [
+                p.readUserDebugParameter(self.gui_params["target_roll"]),
+                p.readUserDebugParameter(self.gui_params["target_pitch"]),
+                p.readUserDebugParameter(self.gui_params["target_yaw"]),
+            ]
+        )
 
         axis_length = 0.1
         line_width = 3
 
-        x_end = target_pos + axis_length * np.array([np.cos(target_euler[2]), np.sin(target_euler[2]), 0])
-        y_end = target_pos + axis_length * np.array([-np.sin(target_euler[2]), np.cos(target_euler[2]), 0])
+        x_end = target_pos + axis_length * np.array(
+            [np.cos(target_euler[2]), np.sin(target_euler[2]), 0]
+        )
+        y_end = target_pos + axis_length * np.array(
+            [-np.sin(target_euler[2]), np.cos(target_euler[2]), 0]
+        )
         z_end = target_pos + axis_length * np.array([0, 0, 1])
 
         p.addUserDebugLine(target_pos, x_end, [1, 0, 0], lineWidth=line_width, lifeTime=0.1)
@@ -219,15 +227,15 @@ class TiagoIKController:
             while True:
                 self.update_ik_targets()
 
-                ik_active = p.readUserDebugParameter(self.gui_params['ik_active'])
-               
+                ik_active = p.readUserDebugParameter(self.gui_params["ik_active"])
+
                 if ik_active > 0.5:
                     if self.solve_ik_step():
                         self.sync_to_pybullet()
 
                 self.draw_target_frame()
                 p.stepSimulation()
-                time.sleep(1./240.)
+                time.sleep(1.0 / 240.0)
 
         except KeyboardInterrupt:
             print("Simulation stopped by user")
@@ -253,6 +261,7 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
 
 

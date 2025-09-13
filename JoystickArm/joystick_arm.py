@@ -4,15 +4,21 @@ import rospy
 from sensor_msgs.msg import Joy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
+
 class ArmJoyTrajectoryPublisher:
     def __init__(self):
         # Initialize the ROS node
-        rospy.init_node('arm_joy_trajectory_publisher')
+        rospy.init_node("arm_joy_trajectory_publisher")
 
         # Arm joint names
         self.joint_names = [
-            'arm_1_joint', 'arm_2_joint', 'arm_3_joint',
-            'arm_4_joint', 'arm_5_joint', 'arm_6_joint', 'arm_7_joint'
+            "arm_1_joint",
+            "arm_2_joint",
+            "arm_3_joint",
+            "arm_4_joint",
+            "arm_5_joint",
+            "arm_6_joint",
+            "arm_7_joint",
         ]
 
         # Initialize joint positions to zero
@@ -22,14 +28,10 @@ class ArmJoyTrajectoryPublisher:
         self.increment_step = 0.02  # radians per input step
 
         # Publisher to arm trajectory controller
-        self.arm_pub = rospy.Publisher(
-            '/arm_controller/command',
-            JointTrajectory,
-            queue_size=1
-        )
+        self.arm_pub = rospy.Publisher("/arm_controller/command", JointTrajectory, queue_size=1)
 
         # Subscribe to joystick input
-        rospy.Subscriber('/joy', Joy, self.joy_callback)
+        rospy.Subscriber("/joy", Joy, self.joy_callback)
 
         rospy.loginfo("ArmJoyTrajectoryPublisher ready and listening to /joy.")
 
@@ -71,12 +73,14 @@ class ArmJoyTrajectoryPublisher:
         rospy.loginfo("Publishing joint trajectory: %s", self.current_positions)
         self.arm_pub.publish(traj)
 
+
 def main():
     try:
-        controller = ArmJoyTrajectoryPublisher()
+        ArmJoyTrajectoryPublisher()
         rospy.spin()
     except rospy.ROSInterruptException:
         pass
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

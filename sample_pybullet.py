@@ -1,9 +1,10 @@
-import pybullet as p
 import time
+
+import pybullet as p
 
 # Start PyBullet with GUI
 
-physicalClient = p.connect(p.GUI)#, options="--opengl2")
+physicalClient = p.connect(p.GUI)  # , options="--opengl2")
 
 # Optional: load a plane
 planeId = p.loadURDF("plane.urdf")

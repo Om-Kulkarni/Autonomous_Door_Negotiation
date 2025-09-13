@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @file tiago.py
 @brief Hardware driver class for the Tiago robot using ROS.
@@ -7,12 +6,14 @@
          and for gathering sensor observations. It is designed to be used by a network host script.
 """
 
-import rospy
-from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from geometry_msgs.msg import Twist
-from sensor_msgs.msg import JointState
-from nav_msgs.msg import Odometry  
 import threading
+
+import rospy
+from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import JointState
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+
 
 class Tiago:
     """A class to control the Tiago robot via ROS topics."""
@@ -22,15 +23,23 @@ class Tiago:
         rospy.loginfo("Initializing Tiago Hardware Driver...")
 
         # Publishers
-        self.torso_pub = rospy.Publisher('/torso_controller/command', JointTrajectory, queue_size=10)
-        self.arm_pub = rospy.Publisher('/arm_controller/command', JointTrajectory, queue_size=10)
-        self.base_pub = rospy.Publisher('/mobile_base_controller/cmd_vel', Twist, queue_size=10)
-        self.gripper_pub = rospy.Publisher('/gripper_controller/command', JointTrajectory, queue_size=10)
+        self.torso_pub = rospy.Publisher(
+            "/torso_controller/command", JointTrajectory, queue_size=10
+        )
+        self.arm_pub = rospy.Publisher("/arm_controller/command", JointTrajectory, queue_size=10)
+        self.base_pub = rospy.Publisher("/mobile_base_controller/cmd_vel", Twist, queue_size=10)
+        self.gripper_pub = rospy.Publisher(
+            "/gripper_controller/command", JointTrajectory, queue_size=10
+        )
 
         # Subscribers
-        self.joint_state_sub = rospy.Subscriber('/joint_states', JointState, self._joint_state_callback)
+        self.joint_state_sub = rospy.Subscriber(
+            "/joint_states", JointState, self._joint_state_callback
+        )
         # NEW: Subscriber for base velocity from odometry data
-        self.odom_sub = rospy.Subscriber('/mobile_base_controller/odom', Odometry, self._odom_callback)
+        self.odom_sub = rospy.Subscriber(
+            "/mobile_base_controller/odom", Odometry, self._odom_callback
+        )
 
         # Observation data storage and lock
         self._latest_observation = {}
@@ -49,7 +58,7 @@ class Tiago:
         with self._lock:
             for i, name in enumerate(msg.name):
                 # UPDATED: Now includes gripper joints in the observation
-                if 'arm' in name or 'torso' in name or 'gripper' in name:
+                if "arm" in name or "torso" in name or "gripper" in name:
                     # Storing with a '.pos' suffix for consistency
                     self._latest_observation[f"{name}.pos"] = msg.position[i]
 
@@ -57,13 +66,13 @@ class Tiago:
         """Callback to update the latest base velocities."""
         with self._lock:
             # Storing with a '.vel' suffix for consistency
-            self._latest_observation['base_linear_x.vel'] = msg.twist.twist.linear.x
-            self._latest_observation['base_angular_z.vel'] = msg.twist.twist.angular.z
+            self._latest_observation["base_linear_x.vel"] = msg.twist.twist.linear.x
+            self._latest_observation["base_angular_z.vel"] = msg.twist.twist.angular.z
 
     def get_observation(self):
         """
         Retrieves the latest observation data from the robot.
-        
+
         Returns:
             dict: A dictionary containing the latest sensor data including joint positions,
                   gripper values, and base velocities.
@@ -71,7 +80,7 @@ class Tiago:
         with self._lock:
             # In a real scenario, you would also add camera data here
             return self._latest_observation.copy()
-        
+
     def send_action(self, action):
         """
         Receives an action dictionary and commands the robot accordingly.
@@ -88,34 +97,33 @@ class Tiago:
                            }
         """
 
-        if 'arm_joint_positions' in action and len(action['arm_joint_positions']) == 5:
+        if "arm_joint_positions" in action and len(action["arm_joint_positions"]) == 5:
             # Pad the 5-DOF command to 7-DOF for Tiago's controller.
             # THIS MUST BE ADJUSTED BASED ON YOUR ACTUAL 5-DOF SETUP
-            full_arm_positions = list(action['arm_joint_positions'])
-            full_arm_positions.insert(2, 0.0) # Example: arm_3_joint fixed at 0.0
-            full_arm_positions.insert(5, 0.0) # Example: arm_6_joint fixed at 0.0
+            full_arm_positions = list(action["arm_joint_positions"])
+            full_arm_positions.insert(2, 0.0)  # Example: arm_3_joint fixed at 0.0
+            full_arm_positions.insert(5, 0.0)  # Example: arm_6_joint fixed at 0.0
             self._send_arm_command(full_arm_positions)
 
-        if 'torso_lift_joint.pos' in action:
-            self._send_torso_command(action['torso_lift_joint.pos'])
+        if "torso_lift_joint.pos" in action:
+            self._send_torso_command(action["torso_lift_joint.pos"])
 
         # --- BASE ---
-        lin_vel = action.get('base_linear_velocity', 0.0)
-        ang_vel = action.get('base_angular_velocity', 0.0)
+        lin_vel = action.get("base_linear_velocity", 0.0)
+        ang_vel = action.get("base_angular_velocity", 0.0)
         self._send_base_command(lin_vel, ang_vel)
 
         # --- GRIPPER ---
-        gripper_cmd = action.get('gripper_command')
+        gripper_cmd = action.get("gripper_command")
         if gripper_cmd == 1:
             self._send_gripper_command(self.GRIPPER_OPEN_POS)
         elif gripper_cmd == 2:
             self._send_gripper_command(self.GRIPPER_CLOSED_POS)
 
-
     def _send_torso_command(self, z_height):
         """Sends a command to the torso."""
         traj = JointTrajectory()
-        traj.joint_names = ['torso_lift_joint']
+        traj.joint_names = ["torso_lift_joint"]
         point = JointTrajectoryPoint()
         point.positions = [z_height]
         point.time_from_start = rospy.Duration(0.5)
@@ -125,7 +133,7 @@ class Tiago:
     def _send_arm_command(self, arm_positions):
         """Sends a command to the arm."""
         traj = JointTrajectory()
-        traj.joint_names = [f'arm_{i}_joint' for i in range(1, 8)]
+        traj.joint_names = [f"arm_{i}_joint" for i in range(1, 8)]
         point = JointTrajectoryPoint()
         point.positions = arm_positions
         point.time_from_start = rospy.Duration(0.5)
@@ -142,7 +150,7 @@ class Tiago:
     def _send_gripper_command(self, positions):
         """Sends a command to the gripper."""
         traj = JointTrajectory()
-        traj.joint_names = ['gripper_left_finger_joint', 'gripper_right_finger_joint']
+        traj.joint_names = ["gripper_left_finger_joint", "gripper_right_finger_joint"]
         point = JointTrajectoryPoint()
         point.positions = positions
         point.time_from_start = rospy.Duration(0.5)

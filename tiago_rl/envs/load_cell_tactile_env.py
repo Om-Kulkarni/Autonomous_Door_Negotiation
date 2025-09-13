@@ -19,31 +19,45 @@ def map_in_range(v, vmax, tmax):
     :param tmax: maximum value or target range
     :return:
     """
-    return (v/vmax)*tmax
+    return (v / vmax) * tmax
 
 
-RAW_FORCES = 'raw'
-BINARY_FORCES = 'binary'
+RAW_FORCES = "raw"
+BINARY_FORCES = "binary"
 
-SPARSE_REWARDS = 'sparse'
-CONT_REWARDS = 'continuous'
+SPARSE_REWARDS = "sparse"
+CONT_REWARDS = "continuous"
 
 
 class LoadCellTactileEnv(BulletRobotEnv):
 
-    def __init__(self, joints, force_noise_mu=None, force_noise_sigma=None, target_force=None, force_type=None, reward_type=None, object_velocity_rew_coef=None, width_range=None, location_sampling=False, shape_sampling=False, *args, **kwargs):
+    def __init__(
+        self,
+        joints,
+        force_noise_mu=None,
+        force_noise_sigma=None,
+        target_force=None,
+        force_type=None,
+        reward_type=None,
+        object_velocity_rew_coef=None,
+        width_range=None,
+        location_sampling=False,
+        shape_sampling=False,
+        *args,
+        **kwargs,
+    ):
 
         self.force_noise_mu = force_noise_mu if force_noise_mu is not None else 0.0
         self.force_noise_sigma = force_noise_sigma if force_noise_sigma is not None else 0.0077
-        
-        self.force_threshold =  3 * self.force_noise_sigma
+
+        self.force_threshold = 3 * self.force_noise_sigma
         self.success_threshold = 5 * self.force_noise_sigma
 
         self.object_velocity_rew_coef = object_velocity_rew_coef
 
         self.target_force = target_force
         if type(self.target_force) == float:
-            self.target_forces = np.array(2*[self.target_force])
+            self.target_forces = np.array(2 * [self.target_force])
         else:
             self.target_forces = np.array([0.0, 0.0])
 
@@ -51,7 +65,10 @@ class LoadCellTactileEnv(BulletRobotEnv):
 
         self.force_type = force_type or RAW_FORCES
         self.reward_type = reward_type or CONT_REWARDS
-        assert self.reward_type in {CONT_REWARDS, SPARSE_REWARDS}, f"unknown reward type {self.reward_type}"
+        assert self.reward_type in {
+            CONT_REWARDS,
+            SPARSE_REWARDS,
+        }, f"unknown reward type {self.reward_type}"
 
         self.current_forces = np.array([0.0, 0.0])
         self.current_forces_raw = np.array([0.0, 0.0])
@@ -90,7 +107,7 @@ class LoadCellTactileEnv(BulletRobotEnv):
         self.object_id = None
 
         BulletRobotEnv.__init__(self, joints=joints, *args, **kwargs)
-        
+
     # BulletRobotEnv methods
     # ----------------------------
 
@@ -99,7 +116,7 @@ class LoadCellTactileEnv(BulletRobotEnv):
 
     def _get_obs(self):
         # get joint positions and velocities from superclass
-        joint_states = super(LoadCellTactileEnv, self)._get_obs()
+        joint_states = super()._get_obs()
 
         if self.object_id:
             # store last forces
@@ -107,13 +124,19 @@ class LoadCellTactileEnv(BulletRobotEnv):
             self.last_forces_raw = self.current_forces_raw.copy()
 
             # get current contact forces
-            f_r, contact_r = self._get_contact_force(self.robotId, self.object_id,
-                                                     self.robot_link_to_index['gripper_right_finger_link'],
-                                                     self.object_link_to_index['link0'])
+            f_r, contact_r = self._get_contact_force(
+                self.robotId,
+                self.object_id,
+                self.robot_link_to_index["gripper_right_finger_link"],
+                self.object_link_to_index["link0"],
+            )
 
-            f_l, contact_l = self._get_contact_force(self.robotId, self.object_id,
-                                                     self.robot_link_to_index['gripper_left_finger_link'],
-                                                     self.object_link_to_index['link0'])
+            f_l, contact_l = self._get_contact_force(
+                self.robotId,
+                self.object_id,
+                self.robot_link_to_index["gripper_left_finger_link"],
+                self.object_link_to_index["link0"],
+            )
 
             self.in_contact = np.array([contact_r, contact_l])
 
@@ -122,14 +145,18 @@ class LoadCellTactileEnv(BulletRobotEnv):
 
             # calculate current forces based on force type
             if self.force_type == BINARY_FORCES:
-                self.current_forces = (np.array(self.current_forces_raw) > self.force_threshold).astype(np.float32)
+                self.current_forces = (
+                    np.array(self.current_forces_raw) > self.force_threshold
+                ).astype(np.float32)
             elif self.force_type == RAW_FORCES:
                 self.current_forces = self.current_forces_raw.copy()
             else:
                 print(f"unknown force type: {self.force_type}")
                 exit(-1)
 
-        return np.concatenate([joint_states, force_delta(self.current_forces_raw, self.target_forces)])
+        return np.concatenate(
+            [joint_states, force_delta(self.current_forces_raw, self.target_forces)]
+        )
 
     def _is_success(self):
         """If the force delta between target and current force is smaller than the force threshold, it's a success.
@@ -139,17 +166,19 @@ class LoadCellTactileEnv(BulletRobotEnv):
         not have access too. We assume that that behavior would be more confusing for an agent than it would be helpful.
         """
         delta_f = force_delta(self.current_forces_raw, self.target_forces)
-        return np.all((np.abs(delta_f) < self.success_threshold)).astype(np.float32)
+        return np.all(np.abs(delta_f) < self.success_threshold).astype(np.float32)
 
     def _compute_reward(self):
         if self.reward_type == CONT_REWARDS:
             # reward for force delta minimization
             delta_f = force_delta(self.current_forces_raw, self.target_forces)
             delta_f_sum = np.sum(np.abs(delta_f))
-            self.force_rew = - map_in_range(delta_f_sum, self.fmax, 1.0)
+            self.force_rew = -map_in_range(delta_f_sum, self.fmax, 1.0)
 
             if self.object_velocity_rew_coef is not None:
-                obj_v = np.abs(np.linalg.norm(np.sum(self.in_contact)*self.get_object_velocity()[0]))
+                obj_v = np.abs(
+                    np.linalg.norm(np.sum(self.in_contact) * self.get_object_velocity()[0])
+                )
                 self.obj_vel_rew = -map_in_range(obj_v, 0.18, self.object_velocity_rew_coef)
             else:
                 self.obj_vel_rew = 0.0
@@ -157,7 +186,10 @@ class LoadCellTactileEnv(BulletRobotEnv):
             self.rew = self.force_rew + self.obj_vel_rew
             return self.rew
         elif self.reward_type == SPARSE_REWARDS:
-            is_goal = (np.abs(force_delta(self.current_forces_raw, self.target_forces)) < self.force_threshold).astype(np.int8)
+            is_goal = (
+                np.abs(force_delta(self.current_forces_raw, self.target_forces))
+                < self.force_threshold
+            ).astype(np.int8)
             return np.sum(is_goal)
 
     def _reset_callback(self):
@@ -166,7 +198,7 @@ class LoadCellTactileEnv(BulletRobotEnv):
             assert len(self.target_force) == 2
             self.target_forces = np.around(np.full((2,), np.random.uniform(*self.target_force)), 3)
         else:
-            self.target_forces = np.array(2*[self.target_force])
+            self.target_forces = np.array(2 * [self.target_force])
         self.fmax = np.sum(np.abs(self.target_forces))
 
         # object width variation
@@ -182,25 +214,46 @@ class LoadCellTactileEnv(BulletRobotEnv):
 
         # create collision and visual objects
         height = 0.1
-        he = [0.02, self.r, height/2]
-        self.obj_col_id = p.createCollisionShape(self.object_type, halfExtents=he, height=height, radius=self.r)
-        self.obj_vis_id = p.createVisualShape(self.object_type, halfExtents=he, length=height, radius=self.r, rgbaColor=list(np.random.uniform(0,1,[3])) + [1])
+        he = [0.02, self.r, height / 2]
+        self.obj_col_id = p.createCollisionShape(
+            self.object_type, halfExtents=he, height=height, radius=self.r
+        )
+        self.obj_vis_id = p.createVisualShape(
+            self.object_type,
+            halfExtents=he,
+            length=height,
+            radius=self.r,
+            rgbaColor=list(np.random.uniform(0, 1, [3])) + [1],
+        )
 
         # sample object location
         if self.location_sampling:
-            l = 2*0.045*0.95 # we only use 95% of the opening's width
-            f = l-2*self.r
-            self.oly = np.round(np.random.uniform(-f/2, f/2), 4)
+            l = 2 * 0.045 * 0.95  # we only use 95% of the opening's width
+            f = l - 2 * self.r
+            self.oly = np.round(np.random.uniform(-f / 2, f / 2), 4)
         else:
             self.oly = self.oly
 
         # create body and apply stiffness parameters
-        self.object_id = p.createMultiBody(2.0, self.obj_col_id, self.obj_vis_id, [self.olx, self.oly, self.olz], [0, 0, 0, 1])
-        p.changeDynamics(self.object_id, -1, lateralFriction=1.0, rollingFriction=1.0, contactStiffness=10000, contactDamping=100)
+        self.object_id = p.createMultiBody(
+            2.0,
+            self.obj_col_id,
+            self.obj_vis_id,
+            [self.olx, self.oly, self.olz],
+            [0, 0, 0, 1],
+        )
+        p.changeDynamics(
+            self.object_id,
+            -1,
+            lateralFriction=1.0,
+            rollingFriction=1.0,
+            contactStiffness=10000,
+            contactDamping=100,
+        )
 
         # finally, create link mapping
         self.object_link_to_index = link_to_idx(self.object_id)
-    
+
     def get_object_velocity(self):
         if self.object_id is not None:
             return p.getBaseVelocity(self.object_id)
@@ -213,32 +266,42 @@ class GripperTactileEnv(LoadCellTactileEnv):
     def __init__(self, initial_state=None, *args, **kwargs):
 
         joints = [
-            'gripper_right_finger_joint',
-            'gripper_left_finger_joint',
+            "gripper_right_finger_joint",
+            "gripper_left_finger_joint",
         ]
 
-        initial_state = initial_state if initial_state is not None else [
-            0.045,
-            0.045,
-        ]
+        initial_state = (
+            initial_state
+            if initial_state is not None
+            else [
+                0.045,
+                0.045,
+            ]
+        )
 
         max_joint_velocities = {
-            'gripper_right_finger_joint': 0.08,
-            'gripper_left_finger_joint': 0.08,
+            "gripper_right_finger_joint": 0.08,
+            "gripper_left_finger_joint": 0.08,
         }
 
-        LoadCellTactileEnv.__init__(self,
-                                    joints=joints,
-                                    initial_state=initial_state,
-                                    max_joint_velocities=max_joint_velocities,
-                                    cam_yaw=120.5228271484375,
-                                    cam_pitch=-68.42454528808594,
-                                    cam_distance=1.1823151111602783,
-                                    cam_target_position=(-0.2751278877258301, -0.15310688316822052, -0.27969369292259216),
-                                    robot_model="gripper_tactile.urdf",
-                                    robot_pos=[0.0, 0.0, 0.265],
-                                    *args,
-                                    **kwargs)
+        LoadCellTactileEnv.__init__(
+            self,
+            joints=joints,
+            initial_state=initial_state,
+            max_joint_velocities=max_joint_velocities,
+            cam_yaw=120.5228271484375,
+            cam_pitch=-68.42454528808594,
+            cam_distance=1.1823151111602783,
+            cam_target_position=(
+                -0.2751278877258301,
+                -0.15310688316822052,
+                -0.27969369292259216,
+            ),
+            robot_model="gripper_tactile.urdf",
+            robot_pos=[0.0, 0.0, 0.265],
+            *args,
+            **kwargs,
+        )
 
 
 class TIAGoTactileEnv(LoadCellTactileEnv):
@@ -246,51 +309,54 @@ class TIAGoTactileEnv(LoadCellTactileEnv):
     def __init__(self, initial_state=None, *args, **kwargs):
 
         joints = [
-            'torso_lift_joint',
-            'arm_1_joint',
-            'arm_2_joint',
-            'arm_3_joint',
-            'arm_4_joint',
-            'arm_5_joint',
-            'arm_6_joint',
-            'arm_7_joint',
-            'gripper_right_finger_joint',
-            'gripper_left_finger_joint',
+            "torso_lift_joint",
+            "arm_1_joint",
+            "arm_2_joint",
+            "arm_3_joint",
+            "arm_4_joint",
+            "arm_5_joint",
+            "arm_6_joint",
+            "arm_7_joint",
+            "gripper_right_finger_joint",
+            "gripper_left_finger_joint",
         ]
-        
+
         initial_state = initial_state or [
-             0.,
-             2.71,
-             -0.173,
-             1.44,
-             1.79,
-             0.23,
-             -0.0424,
-             -0.0209,
-             0.045,
-             0.045
+            0.0,
+            2.71,
+            -0.173,
+            1.44,
+            1.79,
+            0.23,
+            -0.0424,
+            -0.0209,
+            0.045,
+            0.045,
         ]
 
         max_joint_velocities = {
-            'gripper_right_finger_joint': 0.08,
-            'gripper_left_finger_joint': 0.08,
-            'torso_lift_joint': 0.07
+            "gripper_right_finger_joint": 0.08,
+            "gripper_left_finger_joint": 0.08,
+            "torso_lift_joint": 0.07,
         }
-        
-        LoadCellTactileEnv.__init__(self,
-                                    joints=joints,
-                                    initial_state=initial_state,
-                                    max_joint_velocities=max_joint_velocities,
-                                    cam_yaw=89.6000747680664,
-                                    cam_pitch=-35.40000915527344,
-                                    cam_distance=1.6000027656555176,
-                                    robot_model="tiago_tactile.urdf",
-                                    table_model="objects/table.urdf",
-                                    table_pos=[0.7, 0, 0.27],
-                                    *args, **kwargs)
+
+        LoadCellTactileEnv.__init__(
+            self,
+            joints=joints,
+            initial_state=initial_state,
+            max_joint_velocities=max_joint_velocities,
+            cam_yaw=89.6000747680664,
+            cam_pitch=-35.40000915527344,
+            cam_distance=1.6000027656555176,
+            robot_model="tiago_tactile.urdf",
+            table_model="objects/table.urdf",
+            table_pos=[0.7, 0, 0.27],
+            *args,
+            **kwargs,
+        )
 
 
 class GripperTactileCloseEnv(GripperTactileEnv):
 
     def _compute_reward(self):
-        return -np.sum(np.abs(np.array([0.0, 0.0])-self.current_pos[:2]))
+        return -np.sum(np.abs(np.array([0.0, 0.0]) - self.current_pos[:2]))

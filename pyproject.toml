@@ -1,0 +1,130 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autonomous-door-negotiation"
+version = "0.1.0"
+description = "Autonomous Door Negotiation Robot Control System"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Robotics",
+]
+
+dependencies = [
+    "pybullet>=3.2.0",
+    "numpy>=1.20.0",
+    "scipy>=1.7.0",
+    "matplotlib>=3.3.0",
+    "PyYAML>=5.4.0",
+    "black>=22.0.0",
+    "isort>=5.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+    "bandit",
+    "pre-commit",
+]
+
+[tool.black]
+line-length = 100  # Match flake8
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | playground
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["tiago_rl"]
+
+[tool.flake8]
+max-line-length = 100  # More lenient for robotics code
+extend-ignore = [
+    "E203",  # whitespace before ':'
+    "W503",  # line break before binary operator
+    "F401",  # imported but unused (let autoflake handle this)
+    "F841",  # local variable assigned but never used (let autoflake handle this)
+    "E501",  # line too long (let black handle this when possible)
+    "E402",  # module level import not at top (common in robotics scripts)
+    "E721",  # do not compare types (sometimes needed in robotics)
+    "E303",  # too many blank lines
+    "E741",  # ambiguous variable name (common in math/robotics)
+]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".eggs",
+    "*.egg",
+    "playground/",  # Exclude playground directory
+]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = false  # More lenient for prototyping
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false  # More lenient
+disallow_untyped_decorators = false
+no_implicit_optional = false  # More lenient
+warn_redundant_casts = false  # More lenient
+warn_unused_ignores = false  # More lenient
+warn_no_return = false  # More lenient
+warn_unreachable = false  # More lenient for experimental code
+ignore_missing_imports = true
+
+# Exclude problematic files/directories
+exclude = [
+    "playground/",
+    "Socket/Client/types_.py",
+    "Socket/Client/utils.py",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests", "build", "dist"]
+skips = [
+    "B101",  # assert_used
+    "B601",  # shell_injection
+    "B104",  # hardcoded_bind_all_interfaces (common in robotics)
+    "B403",  # import_pickle (common in robotics for serialization)
+    "B301",  # pickle (common in robotics for data transfer)
+    "B110",  # try_except_pass (sometimes needed for robust robotics code)
+]
+
+[tool.bandit.assert_used]
+skips = ["*_test.py", "*test*.py"]

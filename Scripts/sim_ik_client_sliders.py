@@ -8,13 +8,13 @@
   - Sends the computed joint values over TCP socket using `pickle`.
 """
 
+import os
+import pickle
+import socket
+import time
+
 import pybullet as p
 import pybullet_data
-import time
-import os
-import numpy as np
-import socket
-import pickle
 import pygame
 
 # Define robot joint indices based on discovery
@@ -23,14 +23,14 @@ ARM_INDICES = [31, 32, 33, 34, 35, 36, 37]  # arm_1 to arm_7 joints
 
 # Set initial joint positions to match default positions
 INITIAL_POSITIONS = {
-    21: 0.30,    # torso_lift_joint
-    31: 1.61,    # arm_1_joint
-    32: -0.93,   # arm_2_joint
-    33: -3.14,   # arm_3_joint
-    34: 1.83,    # arm_4_joint
-    35: -1.58,   # arm_5_joint
-    36: -0.62,   # arm_6_joint
-    37: -1.58    # arm_7_joint
+    21: 0.30,  # torso_lift_joint
+    31: 1.61,  # arm_1_joint
+    32: -0.93,  # arm_2_joint
+    33: -3.14,  # arm_3_joint
+    34: 1.83,  # arm_4_joint
+    35: -1.58,  # arm_5_joint
+    36: -0.62,  # arm_6_joint
+    37: -1.58,  # arm_7_joint
 }
 
 # Socket config (match real robot IP and port)
@@ -38,7 +38,8 @@ SERVER_IP = "10.68.0.1"  # Replace with robot IP
 SERVER_PORT = 65432
 USE_REAL_ROBOT = False
 
-def send_joint_command(torso, arm_joints,  lin_vel_x, ang_vel_z):
+
+def send_joint_command(torso, arm_joints, lin_vel_x, ang_vel_z):
     """
     @brief Sends torso + arm joint commands to the robot over TCP socket.
     @param torso: float, torso lift height
@@ -58,6 +59,7 @@ def send_joint_command(torso, arm_joints,  lin_vel_x, ang_vel_z):
     except Exception as e:
         print(f"⚠️ Socket send failed: {e}")
 
+
 def main():
     # Initialize Pygame and the joystick
     pygame.init()
@@ -70,9 +72,8 @@ def main():
         print("⚠️ No joystick found. Base velocities will be zero.")
         joystick = None
 
-
     # 1. Connect to PyBullet
-    physicsClient = p.connect(p.GUI)
+    p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
     p.loadURDF("plane.urdf")
@@ -83,7 +84,9 @@ def main():
         print(f"URDF file not found: {urdf_path}")
         return
 
-    robotId = p.loadURDF(urdf_path, [0, 0, 0.1], p.getQuaternionFromEuler([0, 0, 0]), useFixedBase=True)
+    robotId = p.loadURDF(
+        urdf_path, [0, 0, 0.1], p.getQuaternionFromEuler([0, 0, 0]), useFixedBase=True
+    )
     print("✅ Tiago loaded")
 
     # 3. Increase mass for stability
@@ -104,7 +107,7 @@ def main():
 
     for i in range(numJoints):
         info = p.getJointInfo(robotId, i)
-        name = info[1].decode('utf-8')
+        name = info[1].decode("utf-8")
         jointType = info[2]
 
         if name == "arm_tool_joint":
@@ -122,16 +125,16 @@ def main():
     # Create mapping from joint indices to IK solution indices
     torso_ik_index = None
     arm_ik_indices = []
-    
+
     for ik_idx, joint_id in enumerate(jointIds):
         if joint_id == TORSO_INDEX:
             torso_ik_index = ik_idx
         elif joint_id in ARM_INDICES:
             arm_ik_indices.append((ik_idx, joint_id))
-    
+
     # Sort arm indices to maintain order
     arm_ik_indices.sort(key=lambda x: x[1])  # Sort by joint_id
-    
+
     print(f"✅ Torso IK index: {torso_ik_index}")
     print(f"✅ Arm IK indices: {arm_ik_indices}")
 
@@ -146,12 +149,12 @@ def main():
 
     # Create sliders with the actual initial end-effector pose
     sliders = {
-        'x': p.addUserDebugParameter("X", -1.0, 1.0, initial_ee_pos[0]),
-        'y': p.addUserDebugParameter("Y", -1.0, 1.0, initial_ee_pos[1]),
-        'z': p.addUserDebugParameter("Z", 0.2, 1.2, initial_ee_pos[2]),
-        'roll': p.addUserDebugParameter("Roll", -3.14, 3.14, initial_euler[0]),
-        'pitch': p.addUserDebugParameter("Pitch", -3.14, 3.14, initial_euler[1]),
-        'yaw': p.addUserDebugParameter("Yaw", -3.14, 3.14, initial_euler[2]),
+        "x": p.addUserDebugParameter("X", -1.0, 1.0, initial_ee_pos[0]),
+        "y": p.addUserDebugParameter("Y", -1.0, 1.0, initial_ee_pos[1]),
+        "z": p.addUserDebugParameter("Z", 0.2, 1.2, initial_ee_pos[2]),
+        "roll": p.addUserDebugParameter("Roll", -3.14, 3.14, initial_euler[0]),
+        "pitch": p.addUserDebugParameter("Pitch", -3.14, 3.14, initial_euler[1]),
+        "yaw": p.addUserDebugParameter("Yaw", -3.14, 3.14, initial_euler[2]),
         # 'lin_vel_x': p.addUserDebugParameter("Base Lin Vel X", -0.2, 0.2, 0.0),
         # 'ang_vel_z': p.addUserDebugParameter("Base Ang Vel Z", -0.3, 0.3, 0.0),
     }
@@ -163,12 +166,12 @@ def main():
     try:
         while True:
             # 7. Read sliders
-            tx = p.readUserDebugParameter(sliders['x'])
-            ty = p.readUserDebugParameter(sliders['y'])
-            tz = p.readUserDebugParameter(sliders['z'])
-            r = p.readUserDebugParameter(sliders['roll'])
-            p_ = p.readUserDebugParameter(sliders['pitch'])
-            y_ = p.readUserDebugParameter(sliders['yaw'])
+            tx = p.readUserDebugParameter(sliders["x"])
+            ty = p.readUserDebugParameter(sliders["y"])
+            tz = p.readUserDebugParameter(sliders["z"])
+            r = p.readUserDebugParameter(sliders["roll"])
+            p_ = p.readUserDebugParameter(sliders["pitch"])
+            y_ = p.readUserDebugParameter(sliders["yaw"])
 
             # # Read base velocity sliders
             # lin_vel_x = p.readUserDebugParameter(sliders['lin_vel_x'])
@@ -177,20 +180,20 @@ def main():
             # Read joystick for base velocities
             lin_vel_x, ang_vel_z = 0.0, 0.0
             if joystick:
-                pygame.event.pump() # Process event queue
-                
+                pygame.event.pump()  # Process event queue
+
                 # Axis 1 for linear velocity (Y-axis, inverted)
-                lin_vel_raw = -joystick.get_axis(1) 
+                lin_vel_raw = -joystick.get_axis(1)
                 if abs(lin_vel_raw) > dead_zone:
-                    lin_vel_x = lin_vel_raw * 0.2 # Scale to match old slider range
+                    lin_vel_x = lin_vel_raw * 0.2  # Scale to match old slider range
 
                 # Axis 0 for angular velocity (X-axis)
                 ang_vel_raw = -joystick.get_axis(0)
                 if abs(ang_vel_raw) > dead_zone:
-                    ang_vel_z = ang_vel_raw * 0.3 # Scale to match old slider range
-            
+                    ang_vel_z = ang_vel_raw * 0.3  # Scale to match old slider range
+
             # Print the values to the terminal
-            print(f"Linear Vel: {lin_vel_x:.2f}, Angular Vel: {ang_vel_z:.2f}", end='\r')
+            print(f"Linear Vel: {lin_vel_x:.2f}, Angular Vel: {ang_vel_z:.2f}", end="\r")
 
             pos = [tx, ty, tz]
             orn = p.getQuaternionFromEuler([r, p_, y_])
@@ -202,12 +205,16 @@ def main():
                 pos,
                 targetOrientation=orn,
                 maxNumIterations=500,
-                residualThreshold=1e-5
+                residualThreshold=1e-5,
             )
 
             # 9. Extract desired joint positions using correct mapping
-            torso = ik_solution[torso_ik_index] if torso_ik_index is not None and torso_ik_index < len(ik_solution) else 0.0
-            
+            torso = (
+                ik_solution[torso_ik_index]
+                if torso_ik_index is not None and torso_ik_index < len(ik_solution)
+                else 0.0
+            )
+
             arm_joint_positions = []
             for ik_idx, joint_id in arm_ik_indices:
                 if ik_idx < len(ik_solution):
@@ -222,9 +229,15 @@ def main():
             # 10. Apply joints in simulation
             if torso_ik_index is not None:
                 p.setJointMotorControl2(robotId, TORSO_INDEX, p.POSITION_CONTROL, torso, force=1000)
-            
+
             for i, (ik_idx, joint_id) in enumerate(arm_ik_indices):
-                p.setJointMotorControl2(robotId, joint_id, p.POSITION_CONTROL, arm_joint_positions[i], force=1000)
+                p.setJointMotorControl2(
+                    robotId,
+                    joint_id,
+                    p.POSITION_CONTROL,
+                    arm_joint_positions[i],
+                    force=1000,
+                )
 
             # 11. Send to real robot
             send_joint_command(torso, arm_joint_positions, lin_vel_x, ang_vel_z)
@@ -239,7 +252,7 @@ def main():
 
             # 13. Step simulation
             p.stepSimulation()
-            time.sleep(1 / 240.)
+            time.sleep(1 / 240.0)
 
     except KeyboardInterrupt:
         print("👋 Simulation terminated.")
@@ -247,6 +260,7 @@ def main():
     finally:
         p.disconnect()
         pygame.quit()
+
 
 if __name__ == "__main__":
     main()

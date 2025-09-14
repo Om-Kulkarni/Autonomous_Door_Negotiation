@@ -8,20 +8,25 @@ import pybullet as p
 import pybullet_data
 
 # Import teleoperator configurations
-from lerobot.teleoperators import Teleoperator, TeleoperatorConfig, make_teleoperator_from_config, so100_leader
-
-# Import robot configurations (if needed for Tiago)
-from lerobot.robots import Robot, RobotConfig, make_robot_from_config
+from lerobot.teleoperators import (
+    Teleoperator,
+    TeleoperatorConfig,
+    make_teleoperator_from_config,
+)
 
 # Import utility functions
 from lerobot.utils.robot_utils import busy_wait
 from lerobot.utils.utils import init_logging
+
+# Import robot configurations (if needed for Tiago)
+
 
 @dataclass
 class TeleoperateConfig:
     teleop: TeleoperatorConfig
     fps: int = 60
     teleop_time_s: float | None = None
+
 
 def map_leader_to_tiago(action, tiago_joint_limits):
     """
@@ -46,7 +51,14 @@ def map_leader_to_tiago(action, tiago_joint_limits):
                 )
     return mapped_action
 
-def teleop_loop(teleop: Teleoperator, robot_id: int, tiago_joint_limits, fps: int, duration: float | None = None):
+
+def teleop_loop(
+    teleop: Teleoperator,
+    robot_id: int,
+    tiago_joint_limits,
+    fps: int,
+    duration: float | None = None,
+):
     start = time.perf_counter()
     while True:
         loop_start = time.perf_counter()
@@ -55,7 +67,13 @@ def teleop_loop(teleop: Teleoperator, robot_id: int, tiago_joint_limits, fps: in
 
         for joint_name, target_pos in mapped_action.items():
             joint_id = tiago_joint_limits[joint_name][2]  # Get joint ID from limits
-            p.setJointMotorControl2(robot_id, joint_id, p.POSITION_CONTROL, targetPosition=target_pos, force=500)
+            p.setJointMotorControl2(
+                robot_id,
+                joint_id,
+                p.POSITION_CONTROL,
+                targetPosition=target_pos,
+                force=500,
+            )
 
         p.stepSimulation()
         dt_s = time.perf_counter() - loop_start
@@ -64,13 +82,14 @@ def teleop_loop(teleop: Teleoperator, robot_id: int, tiago_joint_limits, fps: in
         if duration is not None and time.perf_counter() - start >= duration:
             return
 
+
 @draccus.wrap()
 def teleoperate(cfg: TeleoperateConfig):
     init_logging()
     logging.info(pformat(asdict(cfg)))
 
     # Connect to PyBullet
-    physics_client = p.connect(p.GUI)
+    p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
     p.loadURDF("plane.urdf")
@@ -105,8 +124,10 @@ def teleoperate(cfg: TeleoperateConfig):
         teleop.disconnect()
         p.disconnect()
 
+
 def main():
     teleoperate()
+
 
 if __name__ == "__main__":
     main()

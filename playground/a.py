@@ -1,9 +1,9 @@
-import numpy as np
 import cv2
+import numpy as np
 
-with open("image.txt", "r") as file:
+with open("image.txt") as file:
     content = file.read()
-content = content.split(',')
+content = content.split(",")
 
 print(len(content))
 
@@ -13,5 +13,3 @@ content = [int(i) for i in content]
 content = np.array(content).reshape((480, 640, 3))
 print(content.shape)
 cv2.imwrite("output_image.png", content)
-
-

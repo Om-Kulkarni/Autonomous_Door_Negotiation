@@ -1,24 +1,23 @@
-import rospy
-import actionlib
 import sys
 
+import actionlib
+import rospy
 from geometry_msgs.msg import PoseStamped
 from moveit_msgs.msg import (
+    BoundingVolume,
+    Constraints,
+    MotionPlanRequest,
     MoveGroupAction,
     MoveGroupGoal,
-    MotionPlanRequest,
-    Constraints,
-    PositionConstraint,
     OrientationConstraint,
-    BoundingVolume,
-    RobotState
+    PositionConstraint,
 )
 from shape_msgs.msg import SolidPrimitive
 from tf.transformations import quaternion_from_euler
 
 
 def main():
-    rospy.init_node('plan_arm_torso_ik_low_level')
+    rospy.init_node("plan_arm_torso_ik_low_level")
 
     # Parse args (x y z roll pitch yaw)
     if len(sys.argv) < 7:
@@ -47,7 +46,7 @@ def main():
     pose.pose.orientation.w = q[3]
 
     # Set up MoveGroup action client
-    client = actionlib.SimpleActionClient('move_group', MoveGroupAction)
+    client = actionlib.SimpleActionClient("move_group", MoveGroupAction)
     rospy.loginfo("Waiting for move_group action server...")
     client.wait_for_server()
     rospy.loginfo("Connected to move_group action server")
@@ -79,7 +78,7 @@ def main():
     # Orientation constraint
     orientation_constraint = OrientationConstraint()
     orientation_constraint.header.frame_id = pose.header.frame_id
-    orientation_constraint.link_name = "arm_tool_link" 
+    orientation_constraint.link_name = "arm_tool_link"
     orientation_constraint.orientation = pose.pose.orientation
     orientation_constraint.absolute_x_axis_tolerance = 0.1
     orientation_constraint.absolute_y_axis_tolerance = 0.1
@@ -112,9 +111,8 @@ def main():
         rospy.logerr("Motion plan failed.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except rospy.ROSInterruptException:
         pass
-

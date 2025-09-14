@@ -1,27 +1,29 @@
+import pickle
+import socket
+
 import rospy
 from sensor_msgs.msg import Joy
-import socket
-import pickle
 
-HOST = '0.0.0.0'
+HOST = "0.0.0.0"
 PORT = 65432
+
 
 class JoySocketServer:
     def __init__(self):
         # Start ROS node
-        rospy.init_node('joy_socket_server')
+        rospy.init_node("joy_socket_server")
 
         # Latest axes values
         self.axes = [0.0, 0.0, 0.0]
 
         # Set up subscriber to /joy topic
-        rospy.Subscriber('/joy', Joy, self.joy_callback)
+        rospy.Subscriber("/joy", Joy, self.joy_callback)
 
         # Set up socket server
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.bind((HOST, PORT))
         self.s.listen(1)
-        print("Server listening on {}:{}".format(HOST, PORT))
+        print(f"Server listening on {HOST}:{PORT}")
 
         self.conn, self.addr = self.s.accept()
         print("Connected by", self.addr)
@@ -59,6 +61,7 @@ class JoySocketServer:
             self.conn.close()
             self.s.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     server = JoySocketServer()
     server.run()

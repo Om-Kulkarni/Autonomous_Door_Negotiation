@@ -1,5 +1,6 @@
-import pybullet as p
 import time
+
+import pybullet as p
 
 # Connect to PyBullet in GUI mode
 p.connect(p.GUI)

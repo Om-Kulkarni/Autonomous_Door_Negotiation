@@ -71,7 +71,7 @@ source /tiago_ws/install/setup.bash
 
 1. **Connect to WiFi:** Join `tiago-0c`.
 2. **Web Interface:** [http://10.68.0.1:8080/](http://10.68.0.1:8080/)
-3. **SSH:**  
+3. **SSH:**
    ```bash
    ssh -oHostKeyAlgorithms=+ssh-rsa root@10.68.0.1
    ```
@@ -136,7 +136,7 @@ points:
 ### Head Control
 ```bash
 rostopic pub /head_controller/command trajectory_msgs/JointTrajectory "header:
-  seq: 0 
+  seq: 0
   stamp:
     secs: 0
     nsecs: 0
@@ -144,7 +144,7 @@ rostopic pub /head_controller/command trajectory_msgs/JointTrajectory "header:
 joint_names:
   - 'head_1_joint'
   - 'head_2_joint'
-points:          
+points:
 - positions: [1.0,-0.6]
   velocities: []
   accelerations: []
@@ -188,7 +188,7 @@ rostopic pub -r 15 /mobile_base_controller/cmd_vel geometry_msgs/Twist "linear:
 angular:
   x: 0.0
   y: 0.0
-  z: -0.3" 
+  z: -0.3"
 ```
 
 ---
@@ -294,7 +294,7 @@ HEAD CONTROL(REFER LIMITS FROM WEBPAGE)
 
 ```bash
 rostopic pub /head_controller/command trajectory_msgs/JointTrajectory "header:
-  seq: 0 
+  seq: 0
   stamp:
     secs: 0
     nsecs: 0
@@ -302,7 +302,7 @@ rostopic pub /head_controller/command trajectory_msgs/JointTrajectory "header:
 joint_names:
   - 'head_1_joint'
   - 'head_2_joint'
-points:          
+points:
 - positions: [1.0,-0.6]
   velocities: []
   accelerations: []
@@ -316,9 +316,9 @@ GRIPPER CONTROL
 
 
 gripper limits:
- 
+
 Maximum:
-   
+
 positions: [0.053180563895850796, 0.05262160242463829]
 
 Minimum:
@@ -360,11 +360,11 @@ rostopic pub -r 15 /mobile_base_controller/cmd_vel geometry_msgs/Twist "linear:
 angular:
   x: 0.0
   y: 0.0
-  z: -0.3" 
+  z: -0.3"
 ```
 
 /home/pal/tiago_adn_ws/src/tiago_moveit_tutorial/src
-rosrun tiago_moveit_tutorials 
+rosrun tiago_moveit_tutorials
 
 Coordinate limits wrt base_footprint
 x > 0.2

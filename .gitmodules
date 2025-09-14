@@ -1,0 +1,3 @@
+[submodule "lerobot_tiago"]
+	path = lerobot_tiago
+	url = https://github.com/Om-Kulkarni/lerobot_tiago.git

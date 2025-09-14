@@ -2,25 +2,28 @@
 """
 tiago_nav_bullet.py
 
-Spawn TIAGo on a plane, then loop forever stepping simulation.
-Prints some link/joint info periodically. Exits only via Ctrl+C.
-
-Exit codes:
-  0  — clean exit (KeyboardInterrupt)
-  1  — failure to connect to PyBullet
-  2  — failure to load URDF
-  3  — other runtime error
+Spawn TIAGo on a plane (legacy) OR in a room-with-door test env.
 """
+
 import os
 import sys
 import time
 import traceback
+import math
 
 import pybullet as p
 import pybullet_data
 
+# ---- toggles -------------------------------------------------
+USE_ROOM_ENV = True          # set False to run the legacy plane-only test
+SPAWN_DOOR    = True         # only used if USE_ROOM_ENV is True
+# --------------------------------------------------------------
+
 DEFAULT_URDF = "tiago_rl/assets/tiago_pal_gripper.urdf"
 
+# Optional import of the environment module
+if USE_ROOM_ENV:
+    from world_room_door import RoomDoorEnv
 
 def connect(gui: bool = True):
     mode = p.GUI if gui else p.DIRECT
@@ -30,13 +33,11 @@ def connect(gui: bool = True):
         return None
     return cid
 
-
 def load_plane():
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0.0, 0.0, -9.81)
     plane_id = p.loadURDF("plane.urdf")
     return plane_id
-
 
 def load_tiago(urdf_path: str):
     if not os.path.exists(urdf_path):
@@ -51,16 +52,10 @@ def load_tiago(urdf_path: str):
         print(f"ERROR: Failed to load URDF '{urdf_path}': {e}", file=sys.stderr)
         return None
 
-
 def print_periodic_info(robot_id: int, interval: int = 240, counter: int = 0):
-    """
-    Print joint/link info every `interval` iterations of the simulation loop.
-    `counter` is current iteration count; returns new counter.
-    """
     if counter % interval == 0:
         num_j = p.getNumJoints(robot_id)
         print(f"[Info] Joints count: {num_j}")
-        # show pose of first link to verify world transform
         try:
             ls = p.getLinkState(robot_id, 0)
             pos, orn = ls[4], ls[5]
@@ -69,9 +64,7 @@ def print_periodic_info(robot_id: int, interval: int = 240, counter: int = 0):
             print(f"WARNING: Could not get Link[0] state: {e}", file=sys.stderr)
     return counter + 1
 
-
 def main():
-    # optional args in future e.g. --direct, --urdf, etc.; minimal for now
     gui = True
     urdf = DEFAULT_URDF
 
@@ -85,19 +78,38 @@ def main():
         if robot_id is None:
             sys.exit(2)
 
+        # --- Step 2 env (optional) ---
+        env = None
+        if USE_ROOM_ENV:
+            env = RoomDoorEnv(client_id=cid, doorway_width=1.0, clearance_eps=0.01)
+            env.build_room()
+            # Hinge position computed from the room + doorway geometry:
+            door_x = env.room_size_xy[0]*0.5 - env.wall_t*0.5 + env.clearance_eps
+            # Choose which jamb you want:
+            y_left  = env.doorway_center_y - env.doorway_width*0.5   # LEFT hinge
+            # y_right = env.doorway_center_y + env.doorway_width*0.5  # RIGHT hinge (use this instead if needed)
+            if SPAWN_DOOR:
+                # Place door at +X wall side, hinge along Z, initially 20 deg open
+                env.spawn_door(
+                    base_pos=[door_x, y_left, 0.0],           # pivot on the LEFT jamb
+                    base_orn_rpy=(0.0, 0.0, math.pi/2),       # yaw 90° ⇒ 0° = closed, positive angles = opening
+                    size_xyz=(0.90, 0.04, 2.0),
+                    initial_angle_deg=20.0,                   # start 20° open
+                    hinge_axis="z",
+                )
+
         # main loop — runs until interrupted
         iter_count = 0
         while True:
             p.stepSimulation()
             iter_count = print_periodic_info(robot_id, interval=240, counter=iter_count)
             if gui:
-                # small sleep so you can see frame updates and allow interrupt
                 time.sleep(1.0 / 240.0)
 
     except KeyboardInterrupt:
         print("\nReceived KeyboardInterrupt. Exiting cleanly.")
         sys.exit(0)
-    except Exception as e:
+    except Exception:
         print("ERROR: Runtime exception encountered:")
         traceback.print_exc()
         sys.exit(3)
@@ -106,7 +118,6 @@ def main():
             p.disconnect()
         except Exception:
             pass
-
 
 if __name__ == "__main__":
     main()

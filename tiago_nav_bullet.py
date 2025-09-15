@@ -28,6 +28,74 @@ from detect_door import (
     pinhole_from_fov,
 )
 
+# === Teleop additions (BEGIN) ================================================
+import json
+import socket
+import threading
+from typing import Tuple
+
+class BaseTeleopReceiver:
+    """
+    Lightweight UDP receiver for base teleop commands (vx, wz).
+    Non-blocking, thread-safe, zero dependency beyond stdlib.
+    - Sender: teleop_base_keyboard.py (UDP JSON: {"vx": float, "wz": float})
+    - This class keeps the latest command and offers get_command().
+    - If no packet arrives for 'timeout_s', command decays to zeros.
+    """
+
+    def __init__(self, bind_host: str = "127.0.0.1", bind_port: int = 9999, timeout_s: float = 0.5):
+        self.addr = (bind_host, bind_port)
+        self.timeout_s = timeout_s
+        self._vx = 0.0
+        self._wz = 0.0
+        self._last_rx = 0.0
+        self._lock = threading.Lock()
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # allow quick restarts
+        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._sock.bind(self.addr)
+        self._sock.setblocking(False)
+        self._run = True
+        self._thr = threading.Thread(target=self._loop, daemon=True)
+        self._thr.start()
+        print(f"[TeleopRX] Listening on {self.addr[0]}:{self.addr[1]} (UDP).")
+
+    def _loop(self):
+        while self._run:
+            try:
+                data, _ = self._sock.recvfrom(1024)
+                obj = json.loads(data.decode("utf-8"))
+                vx = float(obj.get("vx", 0.0))
+                wz = float(obj.get("wz", 0.0))
+                with self._lock:
+                    self._vx, self._wz = vx, wz
+                    self._last_rx = time.time()
+            except BlockingIOError:
+                time.sleep(0.005)
+            except Exception:
+                # swallow malformed packets
+                time.sleep(0.005)
+
+    def get_command(self) -> Tuple[float, float]:
+        """Return (vx, wz); zeros if stale beyond timeout."""
+        with self._lock:
+            stale = (time.time() - self._last_rx) > self.timeout_s
+            if stale:
+                return 0.0, 0.0
+            return float(self._vx), float(self._wz)
+
+    def shutdown(self):
+        self._run = False
+        try:
+            self._thr.join(timeout=0.5)
+        except Exception:
+            pass
+        try:
+            self._sock.close()
+        except Exception:
+            pass
+# === Teleop additions (END) ==================================================
+
 # ---------------------------------------------------------------------------
 # User toggles
 # ---------------------------------------------------------------------------
@@ -127,6 +195,9 @@ def main():
     if cid is None:
         sys.exit(1)
 
+    # === Teleop: start lightweight UDP receiver (non-blocking) ===
+    teleop_rx = BaseTeleopReceiver(bind_host="127.0.0.1", bind_port=9999, timeout_s=0.6)
+
     try:
         # Base plane (always present)
         load_plane()
@@ -147,13 +218,6 @@ def main():
                     initial_angle_deg=0.0,
                     hinge_axis="z",
                 )
-                # if isinstance(maybe_id, int):
-                #     door_body_id = maybe_id
-                # elif hasattr(env, "door_id"):              # <<< use the correct attribute name
-                #     door_body_id = getattr(env, "door_id")
-
-                # print(f"[DBG] door_body_id = {door_body_id}")  # one-time sanity check
-
                 door_body_id = maybe_id if isinstance(maybe_id, int) else getattr(env, "door_id", None)
                 print(f"[DBG] door_body_id = {door_body_id}")  # should print 1 (or a small int), NOT 6
 
@@ -196,8 +260,18 @@ def main():
         # Main loop
         iter_count = 0
         while True:
+            # --- Teleop: fetch latest (vx, wz) and apply to base ---
+            vx, wz = teleop_rx.get_command()
+            try:
+                p.resetBaseVelocity(
+                    robot_id,
+                    linearVelocity=[vx, 0.0, 0.0],
+                    angularVelocity=[0.0, 0.0, wz],
+                )
+            except Exception:
+                pass
+
             p.stepSimulation()
-            # iter_count = print_periodic_info(robot_id, interval=240, counter=iter_count)
             iter_count += 1
 
             if STREAM_RGBD and cam is not None and iter_count % 2 == 0:
@@ -217,6 +291,7 @@ def main():
 
                 # --- AUTO-REMAP: ensure door_body_id matches an objectUniqueId ---
                 if seg is not None:
+                    import numpy as np
                     obj_ids = np.unique(seg >> 24)
                     if (door_body_id is None) or (door_body_id not in obj_ids):
                         ids_flat = (seg >> 24).ravel()
@@ -267,8 +342,8 @@ def main():
                         c_w = result.centroid_w
                         n_w = result.normal_w
                         print(f"[Door] {result.strategy} | pts={result.num_points} | "
-                            f"centroid_w=({c_w[0]:.3f},{c_w[1]:.3f},{c_w[2]:.3f}) "
-                            f"normal_w=({n_w[0]:.2f},{n_w[1]:.2f},{n_w[2]:.2f})")
+                              f"centroid_w=({c_w[0]:.3f},{c_w[1]:.3f},{c_w[2]:.3f}) "
+                              f"normal_w=({n_w[0]:.2f},{n_w[1]:.2f},{n_w[2]:.2f})")
                         try:
                             p.addUserDebugLine(
                                 lineFromXYZ=c_w.tolist(),
@@ -279,6 +354,9 @@ def main():
                             )
                         except Exception:
                             pass
+                    else:
+                        # Fail-safe message when door not detected on a detection tick
+                        print("[Door] Not detected (no matching segmentation / appearance evidence on this frame).")
 
             if GUI:
                 time.sleep(1.0 / 240.0)
@@ -292,10 +370,13 @@ def main():
         sys.exit(3)
     finally:
         try:
+            teleop_rx.shutdown()
+        except Exception:
+            pass
+        try:
             p.disconnect()
         except Exception:
             pass
-
 
 if __name__ == "__main__":
     main()

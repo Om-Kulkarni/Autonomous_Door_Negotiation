@@ -216,50 +216,45 @@ class RoomDoorEnv:
 
     def spawn_door(
         self,
-        base_pos=(1.5, 0.0, 0.0),
+        base_pos,
         base_orn_rpy=(0.0, 0.0, 0.0),
-        size_xyz=(0.90, 0.04, 2.0),
-        initial_angle_deg: float = 20.0,
+        size_xyz=(0.9, 0.04, 2.0),
+        initial_angle_deg=0.0,
         hinge_axis="z",
     ):
-        """Load the single-joint door URDF at base_pos and set an initial angle."""
-        if self.door_id is not None:
-            return self.door_id
+        """
+        Spawn a single revolute-joint door leaf attached to an internal 'frame' link.
+        The 'frame' is fixed to the world via useFixedBase=True.
+        Returns: body_id
+        """
+        # 1) Build a valid URDF (frame --hinge--> leaf)
+        urdf_path = self._generate_door_urdf(
+            size_xyz=size_xyz,
+            hinge_axis=hinge_axis,
+            limit_lower_rad=0.0,
+            limit_upper_rad=math.pi / 2.0,
+        )  # writes to self._tmp_urdf_path
+        base_orn = p.getQuaternionFromEuler(base_orn_rpy)
 
-        # If caller uses the legacy default base_pos, place the hinge correctly at the doorway
-        # with a tiny clearance so it doesn't interpenetrate the +X wall.
-        if base_pos == (1.5, 0.0, 0.0) or base_pos == [1.5, 0.0, 0.0]:
-            sx = self.room_size_xy[0]
-            x_hinge = (sx * 0.5) - (self.wall_t * 0.5) + self.clearance_eps
-            base_pos = [x_hinge, self.doorway_center_y - (self.doorway_width * 0.5), 0.0]
-
-        urdf_path = self._generate_door_urdf(size_xyz=size_xyz, hinge_axis=hinge_axis)
-        quat = p.getQuaternionFromEuler(base_orn_rpy)
-        self.door_id = p.loadURDF(
+        # 2) Load with the frame fixed to world
+        body_id = p.loadURDF(
             urdf_path,
             basePosition=base_pos,
-            baseOrientation=quat,
-            useFixedBase=True,  # frame is fixed to world
-            flags=p.URDF_MAINTAIN_LINK_ORDER,
+            baseOrientation=base_orn,
+            useFixedBase=True,  # <<< IMPORTANT: weld 'frame' to world
+            flags=p.URDF_USE_INERTIA_FROM_FILE,
             physicsClientId=self.cid,
         )
 
-        # light damping helps prevent chatter
-        p.changeDynamics(self.door_id, 1, linearDamping=0.04, angularDamping=0.08, physicsClientId=self.cid)
+        # 3) Set initial hinge angle (joint 0)
+        p.resetJointState(body_id, 0, math.radians(initial_angle_deg), physicsClientId=self.cid)
 
-        # --- NEW: explicitly set the joint’s initial pose ---
-        init_rad = math.radians(initial_angle_deg)
-        p.resetJointState(self.door_id, self.door_joint_index, init_rad, physicsClientId=self.cid)
+        # 4) Mild damping for stability
+        p.changeDynamics(body_id, -1, linearDamping=0.04, angularDamping=0.04, physicsClientId=self.cid)
 
-        # Optional: avoid leaf<->jamb collisions (prevents edge grazing)
-        if self.left_jamb_id is not None:
-            p.setCollisionFilterPair(self.door_id, self.left_jamb_id, 1, -1, enableCollision=0, physicsClientId=self.cid)
-        if self.right_jamb_id is not None:
-            p.setCollisionFilterPair(self.door_id, self.right_jamb_id, 1, -1, enableCollision=0, physicsClientId=self.cid)
-
-        # Keep motor on to hold the initial angle
-        self.set_door_angle(init_rad)
-        return self.door_id
+        # 5) Expose & return id
+        self.door_id = body_id
+        return body_id
 
     def remove_door(self):
         if self.door_id is not None:

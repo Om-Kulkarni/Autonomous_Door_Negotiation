@@ -189,7 +189,7 @@ def teleoperate(cfg: TiagoTeleopConfig):
             
     # Add fixed joints with their correct values
     tiago_joint_limits["arm_3_joint"] = (3.14, 3.14, None)
-    tiago_joint_limits["arm_5_joint"] = (-1.57, -1.57, None)
+    tiago_joint_limits["arm_5_joint"] = (0.0, 0.0, None)
 
     # Define the SO101 leader configuration
     teleop = make_teleoperator_from_config(cfg.teleop)

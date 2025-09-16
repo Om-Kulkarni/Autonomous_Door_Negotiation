@@ -76,6 +76,11 @@ source /tiago_ws/install/setup.bash
    ssh -oHostKeyAlgorithms=+ssh-rsa root@10.68.0.1
    ```
    > *Note: The `-oHostKeyAlgorithms=+ssh-rsa` option is required for compatibility.*
+4. **SCP**
+```bash
+scp -oHostKeyAlgorithms=+ssh-rsa tiago_host.py tiago.py root@10.68.0.1:/home/pal/tiago_adn_ws/src/tiago_adn_pkg/scripts/
+
+```
 
 ---
 
@@ -433,3 +438,5 @@ The tiago files have been rewritten to follow the Lerobot Framework.
 Tiago/tiago_host.py:    Handles the TCP connection with the client. (Lives in the robot)
 Tiago/tiago.py:         Handles the ROS communication to move the robot base and the arm. (Lives in the robot)
 Tiago/tiago_client.py:  Handles The communication with the host. has all the functions to follow the Lerobot Framework.
+
+

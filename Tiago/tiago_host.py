@@ -58,13 +58,13 @@ def main():
     try:
         server_socket.bind((HOST, PORT))
         server_socket.listen(1)
-        rospy.loginfo(f"Tiago Host listening for client on {HOST}:{PORT}")
+        rospy.loginfo("Tiago Host listening for client on {}:{}".format(HOST, PORT))
 
         while not rospy.is_shutdown():
             try:
                 rospy.loginfo("Waiting for a client connection...")
                 conn, addr = server_socket.accept()
-                rospy.loginfo(f"Connected by {addr}")
+                rospy.loginfo("Connected by {}".format(addr))
 
                 try:
                     while not rospy.is_shutdown():
@@ -86,18 +86,18 @@ def main():
                         send_msg(conn, observation)
 
                 except (OSError, pickle.UnpicklingError) as e:
-                    rospy.logerr(f"An error occurred during communication: {e}")
+                    rospy.logerr("An error occurred during communication: {}".format(e))
                 finally:
                     robot.stop_robot()
                     conn.close()
                     rospy.loginfo("Connection closed.")
 
             except OSError as e:
-                rospy.logerr(f"Socket error while waiting for connection: {e}")
+                rospy.logerr("Socket error while waiting for connection: {}".format(e))
                 rospy.sleep(1.0)  # Wait before trying again
 
     except Exception as e:
-        rospy.logerr(f"An unexpected server error occurred: {e}")
+        rospy.logerr("An unexpected server error occurred: {}".format(e))
     finally:
         server_socket.close()
         rospy.loginfo("Server socket closed.")

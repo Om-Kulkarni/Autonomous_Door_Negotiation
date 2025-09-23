@@ -439,4 +439,95 @@ Tiago/tiago_host.py:    Handles the TCP connection with the client. (Lives in th
 Tiago/tiago.py:         Handles the ROS communication to move the robot base and the arm. (Lives in the robot)
 Tiago/tiago_client.py:  Handles The communication with the host. has all the functions to follow the Lerobot Framework.
 
+## Navigation – Towards Door (PyBullet): 
+
+This section explains how the door-navigation demo is assembled and what you can tune for performance and behavior.
+
+---
+
+### 1) Spawn the robot and the environment (room & door)
+
+- Entry point: **`tiago_nav_bullet.py`**  
+  - Connects to PyBullet, loads a ground plane and the TIAGo URDF, builds a square room, and spawns a **hinged** door.  
+  - Environment builder: **`world_room_door.RoomDoorEnv`** creates four walls and spawns a single-joint door via a tiny generated URDF (frame→hinge→leaf). The door’s frame is fixed to the world, the leaf rotates on a revolute joint.  
+
+**Key environment parameters (in `RoomDoorEnv`):**
+- `room_size_xy=(8.0, 8.0)` — overall room span. Larger rooms give more approach run-up.
+- `wall_height=2.5`, `wall_thickness=0.05` — visual/physical wall properties.
+- `doorway_width=1.0`, `doorway_center_y=0.0` — gap where the door sits; widening can make alignment easier.
+- `clearance_eps=0.01` — small offset to avoid contact jitter with the wall.
+- `spawn_door(size_xyz=(0.90, 0.04, 2.0), initial_angle_deg=…)` — door size & starting angle; larger `initial_angle_deg` simulates a partially open door.
+
+**Run just the world + robot (includes door by default):**
+```bash
+python3 tiago_nav_bullet.py
+```
+
+Controls in the PyBullet window:
+
+* **N** – toggle autonomy on/off  
+* **R** – respawn the door at a random angle  
+
+---
+
+### 2) Teleoperate the base with the keyboard
+
+* Launch the keyboard client in a separate terminal: **`teleop_base_keyboard.py`**
+
+```bash
+python3 teleop_base_keyboard.py
+```
+
+**Controls:**  
+`W/S` (forward/back), `A/D` (rotate CCW/CW), arrows supported, `Space` (stop), `Z/X` (halve/double speed limits), `Q` (quit).  
+The client sends UDP JSON `{vx, wz}` at ~20 Hz; the nav script blends/overrides this when autonomy is on.
+
+**Teleop parameters:** (constructor args in `BaseTeleopClient`)  
+* `vx_step`, `wz_step` — nudge step per keypress (responsiveness).  
+* `vx_max`, `wz_max` — absolute speed caps; raise for faster manual motion.  
+* `send_hz` — command rate; higher rate reduces perceived latency.  
+
+---
+
+### 3) RGB-D camera → door detection & pose estimation
+
+* Camera utility: **`rgbd_camera.RGBDCameraBullet`** attaches to the TIAGo head link (e.g., `xtion_rgb_optical_frame`) and returns **RGB**, **metric depth**, and optionally **segmentation**.  
+* Door estimator: **`detect_door.DoorPoseEstimator`** produces the door **centroid** and **normal** (camera & world frames) using either PyBullet **segmentation** (fast, robust) or a simple **appearance** color threshold with plane fitting.  
+
+**Camera parameters (in `RGBDCameraConfig` and cam ctor):**
+* `width`, `height` — image size; higher boosts precision but costs render time.  
+* `fov_deg`, `near`, `far` — projection; set `far` to cover expected ranges.  
+* `use_segmentation=True` — enables object masks for reliable door ID.  
+* `flip_fwd`, `flip_up` — align the camera frame with the robot’s optical frame.  
+
+**Estimator parameters (in `DoorPoseEstimator`):**
+* `strategy` — `"segmentation"` (preferred) or `"appearance"`.  
+* `door_body_id` — required for segmentation; the script auto-remaps to the observed ID if needed.  
+* `rgb_color_bgr`, `rgb_thresh` — target color & tolerance for appearance mode.  
+* `min_pixels` — reject tiny/fragmented detections for stability.  
+
+---
+
+### 4) Autonomous navigation toward the door (rotate → translate)
+
+* Navigator class: **`nav_autonomous.DoorAutoNavigator`** implements a tiny state machine:  
+  **ROTATE** to face the door plane (constant |wz|) → **TRANSLATE** along body-x at constant |vx| to a **standoff** waypoint → **DONE**.  
+  Draws blue (base→waypoint) and green (door normal) debug lines.  
+* Integration: `tiago_nav_bullet.py` wires the camera, detector, and navigator and converts the body-frame `vx` into world XY before calling `resetBaseVelocity`. Toggle autonomy with **N**.  
+
+**Autonomy knobs (set in `tiago_nav_bullet.py` and passed to `DoorAutoNavigator`):**
+* `AUTON_VX` — constant forward speed (m/s). ↑ Faster approach; may need larger standoff to avoid aggressive stops.  
+* `AUTON_WZ` — constant yaw rate (rad/s). ↑ Snappier turns; too high can oscillate if your tolerance is tight.  
+* `STANDOFF_M` — target stop distance from the door plane (meters). ↑ Stops farther; ↓ gets closer.  
+* `yaw_tol` — radians of heading error to consider “facing”. Smaller aligns more precisely before translating.  
+* `dist_tol` — waypoint proximity to declare success; smaller stops more exactly at the waypoint.  
+
+**Run with autonomy (and optional teleop side-by-side):**
+```bash
+# (optional) terminal 1 — manual overrides
+python3 teleop_base_keyboard.py
+
+# terminal 2 — full pipeline: world + camera + detection + autonomous nav
+python3 tiago_nav_bullet.py
+```
 

@@ -32,10 +32,10 @@ def main():
     align = rs.align(rs.stream.color)
 
     # --- Output dir & writers (created on demand) ---
-    out_dir = "data"
+    out_dir = "data/real/d435i/pull"
     os.makedirs(out_dir, exist_ok=True)
-    rgb_path   = os.path.join(out_dir, "video_rgb_3.mp4")
-    depth_path = os.path.join(out_dir, "video_depth_3.mp4")
+    rgb_path   = os.path.join(out_dir, "video_rgb_r1.mp4")
+    depth_path = os.path.join(out_dir, "video_depth_r1.mp4")
 
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     rgb_writer = None

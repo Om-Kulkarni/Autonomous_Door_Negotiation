@@ -1,20 +1,25 @@
-import pyrealsense2 as rs
-import numpy as np
-import cv2
-import time
+import os
+# --- Make OpenCV HighGUI work under Wayland by using X11 (xcb) ---
+os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
+
 import sys
+import time
+import cv2
+import numpy as np
+import pyrealsense2 as rs
 
 # ---------- Settings ----------
 FRAME_WIDTH, FRAME_HEIGHT, FPS = 640, 480, 30
 ROTATION_DEG = 90  # 0, 90, 180, 270
-WINDOW_435I = "D435i: color | depth (rotated)"
-WINDOW_457  = "D457:  color | depth (rotated)"
-TIMEOUT_MS = 200  # wait_for_frames timeout per pipeline
+WINDOW_A = "Cam A (D435i): color | depth"
+WINDOW_B = "Cam B (D457/D455): color | depth"
+
+# Timeouts (ms)
+WAIT_TIMEOUT_MS = 1200     # main loop: be generous for dual-cam USB scheduling
+WARMUP_TIMEOUT_MS = 3000   # startup warmup timeout per grab
+WARMUP_FRAMES = 20         # discard N frames to let auto-exposure/align stabilize
 
 def rotate_frame(frame, rotation=90):
-    """
-    Rotate an image by 90, 180, or 270 degrees clockwise.
-    """
     if rotation == 90:
         return cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
     elif rotation == 180:
@@ -22,170 +27,171 @@ def rotate_frame(frame, rotation=90):
     elif rotation == 270:
         return cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
     else:
-        return frame  # no rotation
+        return frame
 
 def draw_fps_top_right(img, fps_text, margin=8, font=cv2.FONT_HERSHEY_SIMPLEX, scale=0.6, thickness=2):
-    """
-    Draw text at the top-right with a subtle background for readability.
-    """
-    (text_w, text_h), baseline = cv2.getTextSize(fps_text, font, scale, thickness)
+    (tw, th), base = cv2.getTextSize(fps_text, font, scale, thickness)
     x2 = img.shape[1] - margin
     y1 = margin
-    x1 = x2 - text_w - 2*margin
-    y2 = y1 + text_h + 2*margin
-
-    # Background box
+    x1 = x2 - tw - 2*margin
+    y2 = y1 + th + 2*margin
     cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 0), -1)
-    # Text (baseline adjusted)
-    cv2.putText(img, fps_text, (x1 + margin, y2 - margin - baseline), font, scale, (255, 255, 255), thickness, cv2.LINE_AA)
+    cv2.putText(img, fps_text, (x1 + margin, y2 - margin - base), font, scale, (255, 255, 255), thickness, cv2.LINE_AA)
 
 def colorize_depth(depth_frame):
-    """
-    Convert depth frame to a colored visualization.
-    """
     depth = np.asanyarray(depth_frame.get_data())
-    depth_vis = cv2.applyColorMap(
-        cv2.convertScaleAbs(depth, alpha=0.03),  # scale for visualization
-        cv2.COLORMAP_JET
-    )
-    return depth_vis
+    return cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.03), cv2.COLORMAP_JET)
 
 def start_pipeline_for_serial(serial, width=FRAME_WIDTH, height=FRAME_HEIGHT, fps=FPS):
-    """
-    Create and start a RealSense pipeline bound to a specific device serial.
-    Returns (pipeline, align_to_color).
-    """
-    pipeline = rs.pipeline()
+    pipe = rs.pipeline()
     cfg = rs.config()
     cfg.enable_device(serial)
     cfg.enable_stream(rs.stream.color, width, height, rs.format.bgr8, fps)
     cfg.enable_stream(rs.stream.depth, width, height, rs.format.z16, fps)
-    pipeline_profile = pipeline.start(cfg)
+    profile = pipe.start(cfg)
     align = rs.align(rs.stream.color)
-    return pipeline, align
+    return pipe, align, profile
 
-def find_serials_for_models(targets=("D435I", "D457")):
-    """
-    Scan connected RealSense devices and return a dict {model_key: serial}.
-    Matching is case-insensitive substring search on camera name.
-    """
+def pick_devices():
     ctx = rs.context()
-    if len(ctx.devices) == 0:
-        print("No RealSense devices found.")
-        sys.exit(1)
+    devs = list(ctx.query_devices())
+    if not devs:
+        print("No RealSense devices found."); sys.exit(1)
 
-    found = {}
-    targets_upper = [t.upper() for t in targets]
+    infos = []
+    for d in devs:
+        name = d.get_info(rs.camera_info.name)
+        serial = d.get_info(rs.camera_info.serial_number)
+        infos.append((name.upper(), serial, name, d))
 
-    for dev in ctx.query_devices():
-        name = dev.get_info(rs.camera_info.name).upper()
-        serial = dev.get_info(rs.camera_info.serial_number)
-        for t in targets_upper:
-            # accept either exact token or substring in the reported name
-            if t in name and t not in found:
-                found[t] = serial
+    def find_first(token):
+        for nu, s, n, obj in infos:
+            if token in nu:
+                return s, n, obj
+        return None, None, None
 
-    # Friendly error if any target missing
-    missing = [t for t in targets_upper if t not in found]
-    if missing:
-        msg = "Could not find required devices: " + ", ".join(missing)
-        # Also list what's connected for debugging
-        connected = [f"{d.get_info(rs.camera_info.name)} [{d.get_info(rs.camera_info.serial_number)}]" for d in ctx.query_devices()]
-        msg += "\nConnected devices:\n  - " + "\n  - ".join(connected)
-        print(msg)
-        sys.exit(1)
+    camA_serial, camA_name, camA_obj = find_first("D435I")
+    if not camA_serial:
+        camA_serial, camA_name, camA_obj = find_first("D435")  # fallback (no IMU)
+    if not camA_serial:
+        print("Could not find a D435/D435i for Cam A.\nConnected devices:\n  - " +
+              "\n  - ".join([f"{n} [{s}]" for _, s, n, _ in infos])); sys.exit(1)
 
-    return {k: found[k] for k in targets_upper}
+    camB_serial, camB_name, camB_obj = find_first("D457")
+    if not camB_serial:
+        camB_serial, camB_name, camB_obj = find_first("D455")
+    if not camB_serial:
+        print("Could not find a D457 or D455 for Cam B.\nConnected devices:\n  - " +
+              "\n  - ".join([f"{n} [{s}]" for _, s, n, _ in infos])); sys.exit(1)
+
+    if camA_serial == camB_serial:
+        for nu, s, n, obj in infos:
+            if s != camA_serial and ("D457" in nu or "D455" in nu):
+                camB_serial, camB_name, camB_obj = s, n, obj
+                break
+        if camA_serial == camB_serial:
+            print("Only one suitable device found; need two distinct cameras.")
+            sys.exit(1)
+
+    # Report USB link speeds (3.2 / 3.1 / 2.1 etc.)
+    usbA = camA_obj.get_info(rs.camera_info.usb_type_descriptor) if camA_obj.supports(rs.camera_info.usb_type_descriptor) else "unknown"
+    usbB = camB_obj.get_info(rs.camera_info.usb_type_descriptor) if camB_obj.supports(rs.camera_info.usb_type_descriptor) else "unknown"
+    print(f"Cam A -> {camA_name} [{camA_serial}] (USB {usbA})")
+    print(f"Cam B -> {camB_name} [{camB_serial}] (USB {usbB})")
+    if "2." in usbA or "2." in usbB:
+        print("WARNING: One camera is on USB2.x — reduce resolution/FPS or move it to a USB3 port/controller.")
+
+    return camA_serial, camB_serial, camA_name, camB_name
+
+def warmup(pipe, align, label="cam", frames=WARMUP_FRAMES, timeout=WARMUP_TIMEOUT_MS):
+    ok = 0
+    while ok < frames:
+        try:
+            f = pipe.wait_for_frames(timeout)
+        except RuntimeError:
+            # Just try again; device might still be settling
+            continue
+        f = align.process(f)
+        if f.get_color_frame() and f.get_depth_frame():
+            ok += 1
 
 def main():
-    # ---- Discover the D435i and D457 by name and get their serials ----
-    serials = find_serials_for_models(("D435I", "D457"))
-    serial_435i = serials["D435I"]
-    serial_457  = serials["D457"]
+    camA_serial, camB_serial, camA_name, camB_name = pick_devices()
 
-    # ---- Start pipelines ----
-    p435i, align435i = start_pipeline_for_serial(serial_435i)
-    p457,  align457  = start_pipeline_for_serial(serial_457)
+    # Start both pipelines first (helps with USB scheduling)
+    pA, alignA, profA = start_pipeline_for_serial(camA_serial)
+    pB, alignB, profB = start_pipeline_for_serial(camB_serial)
 
-    # FPS trackers
-    last_t_435i = time.time()
-    last_t_457  = time.time()
-    fps_435i = 0.0
-    fps_457  = 0.0
+    # Warm up both cameras (discard first N frames so AE/AF/align stabilizes)
+    print("Warming up cameras…")
+    warmup(pA, alignA, "A")
+    warmup(pB, alignB, "B")
+    print("Warmup done.")
 
-    cv2.namedWindow(WINDOW_435I, cv2.WINDOW_NORMAL)
-    cv2.namedWindow(WINDOW_457,  cv2.WINDOW_NORMAL)
+    lastA = time.time(); fpsA = 0.0
+    lastB = time.time(); fpsB = 0.0
+
+    cv2.namedWindow(WINDOW_A, cv2.WINDOW_NORMAL)
+    cv2.namedWindow(WINDOW_B, cv2.WINDOW_NORMAL)
 
     try:
         while True:
-            # -------- Read both cameras (with timeout to keep UI responsive) --------
-            frames_435i = p435i.wait_for_frames(TIMEOUT_MS)
-            frames_457  = p457.wait_for_frames(TIMEOUT_MS)
+            # Get frames with a generous timeout; don't crash on occasional misses
+            try:
+                framesA = pA.wait_for_frames(WAIT_TIMEOUT_MS)
+                framesA = alignA.process(framesA)
+            except RuntimeError:
+                # Skip this iteration for Cam A
+                framesA = None
 
-            # Align to color for both
-            frames_435i = align435i.process(frames_435i)
-            frames_457  = align457.process(frames_457)
+            try:
+                framesB = pB.wait_for_frames(WAIT_TIMEOUT_MS)
+                framesB = alignB.process(framesB)
+            except RuntimeError:
+                framesB = None
 
-            d435i = frames_435i.get_depth_frame()
-            c435i = frames_435i.get_color_frame()
-            d457  = frames_457.get_depth_frame()
-            c457  = frames_457.get_color_frame()
-
-            if not (d435i and c435i and d457 and c457):
-                # If any stream missing, skip this loop iteration
-                # (could also handle fallbacks here).
+            # If neither produced frames this tick, continue
+            if framesA is None and framesB is None:
                 continue
 
-            # -------- Convert to numpy --------
-            color_435i = np.asanyarray(c435i.get_data())
-            depth_vis_435i = colorize_depth(d435i)
+            # Build panels (keep last good frame if one side misses this tick)
+            panelA = None
+            panelB = None
 
-            color_457 = np.asanyarray(c457.get_data())
-            depth_vis_457 = colorize_depth(d457)
+            if framesA and framesA.get_color_frame() and framesA.get_depth_frame():
+                colA = rotate_frame(np.asanyarray(framesA.get_color_frame().get_data()), ROTATION_DEG)
+                depA = rotate_frame(colorize_depth(framesA.get_depth_frame()), ROTATION_DEG)
+                panelA = np.hstack([colA, depA])
+                now = time.time()
+                dtA = now - lastA
+                if dtA > 0:
+                    fpsA = 0.9*fpsA + 0.1*(1.0/dtA) if fpsA > 0 else (1.0/dtA)
+                lastA = now
 
-            # -------- Rotate if requested --------
-            color_435i = rotate_frame(color_435i, ROTATION_DEG)
-            depth_vis_435i = rotate_frame(depth_vis_435i, ROTATION_DEG)
-            color_457 = rotate_frame(color_457, ROTATION_DEG)
-            depth_vis_457 = rotate_frame(depth_vis_457, ROTATION_DEG)
+            if framesB and framesB.get_color_frame() and framesB.get_depth_frame():
+                colB = rotate_frame(np.asanyarray(framesB.get_color_frame().get_data()), ROTATION_DEG)
+                depB = rotate_frame(colorize_depth(framesB.get_depth_frame()), ROTATION_DEG)
+                panelB = np.hstack([colB, depB])
+                now = time.time()
+                dtB = now - lastB
+                if dtB > 0:
+                    fpsB = 0.9*fpsB + 0.1*(1.0/dtB) if fpsB > 0 else (1.0/dtB)
+                lastB = now
 
-            # -------- Compute FPS (per camera) --------
-            now = time.time()
-            dt_435i = now - last_t_435i
-            dt_457  = now - last_t_457
-            if dt_435i > 0:
-                fps_435i = 0.9 * fps_435i + 0.1 * (1.0 / dt_435i) if fps_435i > 0 else (1.0 / dt_435i)
-            if dt_457 > 0:
-                fps_457  = 0.9 * fps_457  + 0.1 * (1.0 / dt_457)  if fps_457  > 0 else (1.0 / dt_457)
-            last_t_435i = now
-            last_t_457  = now
+            if panelA is not None:
+                draw_fps_top_right(panelA, f"FPS: {fpsA:5.1f}")
+                cv2.imshow(WINDOW_A, panelA)
+            if panelB is not None:
+                draw_fps_top_right(panelB, f"FPS: {fpsB:5.1f}")
+                cv2.imshow(WINDOW_B, panelB)
 
-            # -------- Compose side-by-side panels --------
-            panel_435i = np.hstack([color_435i, depth_vis_435i])
-            panel_457  = np.hstack([color_457,  depth_vis_457])
-
-            # -------- Overlay FPS (top-right) --------
-            draw_fps_top_right(panel_435i, f"FPS: {fps_435i:5.1f}")
-            draw_fps_top_right(panel_457,  f"FPS: {fps_457:5.1f}")
-
-            # -------- Show windows --------
-            cv2.imshow(WINDOW_435I, panel_435i)
-            cv2.imshow(WINDOW_457,  panel_457)
-
-            # Quit on 'q'
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
     finally:
-        # Clean up
-        try:
-            p435i.stop()
-        except Exception:
-            pass
-        try:
-            p457.stop()
-        except Exception:
-            pass
+        for pipe in (pA, pB):
+            try: pipe.stop()
+            except Exception: pass
         cv2.destroyAllWindows()
 
 if __name__ == "__main__":

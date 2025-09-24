@@ -31,6 +31,7 @@ dependencies = [
     "PyYAML>=5.4.0",
     "black>=22.0.0",
     "isort>=5.0.0",
+    "ultralytics>=8.3.203",
 ]
 
 [project.optional-dependencies]

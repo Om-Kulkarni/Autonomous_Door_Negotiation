@@ -54,6 +54,10 @@ def _is_door_label(label: str) -> bool:
     l = label.lower()
     return "door" in l
 
+def _is_handle_label(label: str) -> bool:
+    l = label.lower()
+    return ("handle" in l) or ("knob" in l)
+
 
 # ---------------------- Detection selection ---------------------------------
 
@@ -79,6 +83,41 @@ def _choose_door_detection(result):
     for i, bb in enumerate(xyxy):
         label = _class_name(cls_ids[i], names) if cls_ids is not None else "obj"
         if not _is_door_label(label):
+            continue
+        x1, y1, x2, y2 = map(float, bb)
+        area = (x2 - x1) * (y2 - y1)
+        c = _bbox_centroid(bb)
+        candidates.append((area, c, bb, label))
+
+    if not candidates:
+        return None, None, None
+
+    candidates.sort(key=lambda t: t[0], reverse=True)
+    _, centroid, bb, label = candidates[0]
+    return centroid, bb, label
+
+def _choose_handle_detection(result):
+    """
+    From a Ultralytics result, pick ONE handle/knob detection (largest area preferred).
+    Returns (centroid_xy, bbox_xyxy, label) in the *rotated* frame coordinates,
+    or (None, None, None) if no handle found.
+    """
+    boxes = getattr(result, "boxes", None)
+    if boxes is None:
+        return None, None, None
+
+    try:
+        xyxy = boxes.xyxy.detach().cpu().numpy()  # (N,4)
+        cls_ids = boxes.cls.detach().cpu().numpy() if getattr(boxes, "cls", None) is not None else None
+    except Exception:
+        return None, None, None
+
+    names = getattr(result, "names", {})
+
+    candidates = []
+    for i, bb in enumerate(xyxy):
+        label = _class_name(cls_ids[i], names) if cls_ids is not None else "obj"
+        if not _is_handle_label(label):
             continue
         x1, y1, x2, y2 = map(float, bb)
         area = (x2 - x1) * (y2 - y1)
@@ -222,22 +261,40 @@ def main():
                 depth_viz = cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.03), cv2.COLORMAP_JET)
                 depth_rot = rotate_frame(depth_viz, rotation=args.rotation)
 
-            # Decide action from largest door detection (centroid x)
+            # Decide action:
+            # - If door distance > 1.5 m -> focus DOOR (position/orientation from door)
+            # - If door distance < 1.5 m -> switch focus to HANDLE (position/orientation from handle)
             cx = None
             distance_m = None
             if result is not None:
+                # 1) Pick door first to measure proximity
                 centroid, bb, label = _choose_door_detection(result)
                 if centroid is not None:
                     cx, cy = centroid
-                    cv2.circle(vis, (cx, cy), 6, (0, 255, 255), -1)
-                    cv2.putText(vis, f"{label}", (cx + 8, cy - 8),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-                    # get depth at centroid (map back to original coords first)
+                    # map to original coords for depth sampling
                     u, v = rotated_to_original_coords(cx, cy, W0, H0, args.rotation)
                     dw, dh = depth_frame.get_width(), depth_frame.get_height()
                     u = int(np.clip(u, 0, dw - 1))
                     v = int(np.clip(v, 0, dh - 1))
                     distance_m = _depth_at(depth_frame, u, v, search=2)
+
+                    # 2) If we are within 1.5 m of the door, re-focus to handle
+                    if distance_m is not None and distance_m > 0 and distance_m < 1.5:
+                        h_centroid, h_bb, h_label = _choose_handle_detection(result)
+                        if h_centroid is not None:
+                            # overwrite focus to handle
+                            cx, cy = h_centroid
+                            label = h_label
+                            # recompute distance at handle centroid (for overlay/STOP logic)
+                            u, v = rotated_to_original_coords(cx, cy, W0, H0, args.rotation)
+                            u = int(np.clip(u, 0, dw - 1))
+                            v = int(np.clip(v, 0, dh - 1))
+                            distance_m = _depth_at(depth_frame, u, v, search=2)
+
+                    # Draw the finally selected focus (door or handle)
+                    cv2.circle(vis, (cx, cy), 6, (0, 255, 255), -1)
+                    cv2.putText(vis, f"{label}", (cx + 8, cy - 8),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
 
             action = _decide_action(cx, W, args.tol_px, distance_m)
             _overlay_status(vis, action, cx, args.tol_px, distance_m)

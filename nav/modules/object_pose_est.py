@@ -259,19 +259,12 @@ def run_realsense_yolo(
                 depth_viz = cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.03), cv2.COLORMAP_JET)
                 depth_rot = rotate_frame(depth_viz, rotation=rotation)
 
-            # --------------- 3D centroid overlays ---------------------------------
+            # --------------- 3D centroid overlays (BBox center only) --------------
             dets_total = 0
             if result is not None:
                 names = getattr(result, "names", {})
                 boxes = getattr(result, "boxes", None)
-                masks = getattr(result, "masks", None)
-
-                mask_data = None
-                if masks is not None and getattr(masks, "data", None) is not None:
-                    try:
-                        mask_data = masks.data.detach().cpu().numpy()  # (N,H,W)
-                    except Exception:
-                        mask_data = None
+                masks = getattr(result, "masks", None)  # kept for compatibility, not used for centroid
 
                 if boxes is not None:
                     try:
@@ -288,12 +281,8 @@ def run_realsense_yolo(
                             if not show_all_labels and not _is_interesting_label(label):
                                 continue
 
-                            # Centroid in rotated coords
-                            centroid = None
-                            if mask_data is not None and i < mask_data.shape[0]:
-                                centroid = _mask_centroid((mask_data[i] > 0.5).astype(np.uint8))
-                            if centroid is None:
-                                centroid = _bbox_centroid(bb)
+                            # Centroid from BOUNDING BOX ONLY (no mask centroid)
+                            centroid = _bbox_centroid(bb)
                             cx_r, cy_r = centroid
 
                             # Map centroid back to *original* pixel coords
@@ -309,7 +298,6 @@ def run_realsense_yolo(
                                 X, Y, Z = _pixel_to_3d(depth_frame, u, v, z)
                                 # Draw centroid + compact XYZ (meters)
                                 cv2.circle(color_annot, (cx_r, cy_r), 5, (0, 255, 255), -1)
-                                # Compact one-liner: label and XYZ (m) with 2 decimals
                                 text = f"{label}: X{X:.2f} Y{Y:.2f} Z{Z:.2f} m"
                                 cv2.putText(color_annot, text, (cx_r + 8, cy_r - 8),
                                             cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2, cv2.LINE_AA)

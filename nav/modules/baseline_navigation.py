@@ -129,19 +129,26 @@ def choose_door_detection(result):
     return centroid, bb, label
 
 
-def decide_action(cx: int, img_w: int, tol_px: int) -> str:
+def decide_action(cx: int | None, img_w: int, tol_px: int) -> str:
     """
-    Decide action based on door centroid x (cx) relative to image center.
-    If no centroid (cx is None) -> 'ROTATE_RIGHT' as a default search behavior.
+    If the door centroid is LEFT of the left tolerance limit  -> ROTATE_RIGHT
+    If the door centroid is RIGHT of the right tolerance limit -> ROTATE_LEFT
+    If centroid is within the tolerance band                   -> MOVE_STRAIGHT
+    If no centroid (cx is None)                                -> ROTATE_RIGHT (search)
     """
     if cx is None:
-        return "ROTATE_RIGHT"  # default search spin
-    center_x = img_w // 2
-    dx = cx - center_x
-    if abs(dx) <= tol_px:
-        return "MOVE_STRAIGHT"
-    return "ROTATE_LEFT" if dx < 0 else "ROTATE_RIGHT"
+        return "ROTATE_RIGHT"  # default search behavior
 
+    center_x = img_w // 2
+    left_limit  = center_x - tol_px
+    right_limit = center_x + tol_px
+
+    if cx < left_limit:
+        return "ROTATE_RIGHT"
+    elif cx > right_limit:
+        return "ROTATE_LEFT"
+    else:
+        return "MOVE_STRAIGHT"
 
 def overlay_status(img, state: str, cx: int | None, tol_px: int):
     """Draw current state, center line, tolerance band, and centroid marker."""
@@ -168,7 +175,7 @@ def main():
     ap.add_argument("--iou", type=float, default=0.45, help="YOLO IoU threshold")
     ap.add_argument("--rotation", type=int, default=90, choices=[0, 90, 180, 270],
                     help="Rotate RGB before inference/display")
-    ap.add_argument("--tol-px", type=int, default=40, help="Tolerance in pixels around image center")
+    ap.add_argument("--tol-px", type=int, default=60, help="Tolerance in pixels around image center")
     ap.add_argument("--show-depth", action="store_true", help="Show depth panel beside RGB")
     args = ap.parse_args()
 

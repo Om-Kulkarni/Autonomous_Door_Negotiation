@@ -1,6 +1,6 @@
 # baseline_navigation.py
 # Simple state machine to align to a detected door using YOLO on RealSense RGB.
-# All indications (TURN LEFT / TURN RIGHT / MOVE STRAIGHT) are drawn on the image window.
+# All indications (TURN LEFT / TURN RIGHT / MOVE STRAIGHT / STOP) are drawn on the image window.
 #
 # Utilizes helpers from object_pose_est.py:
 #   - rotate_frame
@@ -30,10 +30,13 @@ try:
         _open_realsense,
         _bbox_centroid,
         _class_name,
+        _depth_at,
+        rotated_to_original_coords
     )
     _HAVE_MODULES_PREFIX = True
 except Exception:
     from object_pose_est import rotate_frame, _bbox_centroid, _class_name  # type: ignore
+    from object_pose_est import _depth_at, rotated_to_original_coords  # type: ignore
     # Fallback: minimal local RS opener if object_pose_est is flat
     def _open_realsense(color_size=(640, 480), depth_size=(640, 480), fps: int = 30):
         pipeline = rs.pipeline()
@@ -92,13 +95,18 @@ def _choose_door_detection(result):
 
 # ---------------------- State logic -----------------------------------------
 
-def _decide_action(cx: int | None, img_w: int, tol_px: int) -> str:
+def _decide_action(cx: int | None, img_w: int, tol_px: int, distance_m: float | None) -> str:
     """
-    If the door centroid is LEFT of the left tolerance limit  -> TURN LEFT
-    If the door centroid is RIGHT of the right tolerance limit -> TURN RIGHT
-    If centroid is within the tolerance band                   -> MOVE STRAIGHT
-    If no centroid (cx is None)                                -> SEARCH (turn right by default)
+    If proximity < 1.0 m -> STOP
+    Else:
+      If the door centroid is LEFT of the left tolerance limit  -> TURN LEFT
+      If the door centroid is RIGHT of the right tolerance limit -> TURN RIGHT
+      If centroid is within the tolerance band                   -> MOVE STRAIGHT
+      If no centroid (cx is None)                                -> SEARCH (turn right by default)
     """
+    if distance_m is not None and distance_m > 0 and distance_m < 1.0:
+        return "STOP"
+
     if cx is None:
         return "SEARCH"
 
@@ -114,8 +122,8 @@ def _decide_action(cx: int | None, img_w: int, tol_px: int) -> str:
         return "MOVE STRAIGHT"
 
 
-def _overlay_status(img, action: str, cx: int | None, tol_px: int):
-    """Draw current action, center line, tolerance band, and centroid marker."""
+def _overlay_status(img, action: str, cx: int | None, tol_px: int, distance_m: float | None):
+    """Draw current action, center line, tolerance band, centroid marker, and distance."""
     h, w = img.shape[:2]
     mid = w // 2
 
@@ -132,6 +140,11 @@ def _overlay_status(img, action: str, cx: int | None, tol_px: int):
     # action text HUD
     cv2.putText(img, f"ACTION: {action}", (10, 28),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.85, (50, 220, 50), 2, cv2.LINE_AA)
+
+    # distance info
+    if distance_m is not None and distance_m > 0:
+        cv2.putText(img, f"DIST: {distance_m:.2f} m", (10, 60),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2, cv2.LINE_AA)
 
 
 # ---------------------- Main -------------------------------------------------
@@ -188,6 +201,7 @@ def main():
 
             depth = np.asanyarray(depth_frame.get_data())
             color = np.asanyarray(color_frame.get_data())
+            H0, W0 = color.shape[:2]  # ORIGINAL (unrotated) dims for depth mapping
 
             # Rotate BEFORE inference so YOLO runs on what we display
             color_rot = rotate_frame(color, rotation=args.rotation)
@@ -210,17 +224,23 @@ def main():
 
             # Decide action from largest door detection (centroid x)
             cx = None
+            distance_m = None
             if result is not None:
                 centroid, bb, label = _choose_door_detection(result)
                 if centroid is not None:
                     cx, cy = centroid
-                    # draw explicit centroid + label
                     cv2.circle(vis, (cx, cy), 6, (0, 255, 255), -1)
                     cv2.putText(vis, f"{label}", (cx + 8, cy - 8),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+                    # get depth at centroid (map back to original coords first)
+                    u, v = rotated_to_original_coords(cx, cy, W0, H0, args.rotation)
+                    dw, dh = depth_frame.get_width(), depth_frame.get_height()
+                    u = int(np.clip(u, 0, dw - 1))
+                    v = int(np.clip(v, 0, dh - 1))
+                    distance_m = _depth_at(depth_frame, u, v, search=2)
 
-            action = _decide_action(cx, W, args.tol_px)
-            _overlay_status(vis, action, cx, args.tol_px)
+            action = _decide_action(cx, W, args.tol_px, distance_m)
+            _overlay_status(vis, action, cx, args.tol_px, distance_m)
 
             # Compose window
             if args.show_depth:
@@ -229,7 +249,6 @@ def main():
                 view = vis
 
             cv2.imshow("Baseline Door Alignment", view)
-            # Also print the action in console (optional)
             print(f"[ACTION] {action}")
 
             key = cv2.waitKey(1) & 0xFF

@@ -2,6 +2,9 @@
 
 A research project focused on developing autonomous robotic systems capable of negotiating doors in real-world environments. This project explores challenges and solutions in door detection, handle manipulation, and successful door traversal for mobile robots.
 
+<img width="522" height="925" alt="image" src="https://github.com/user-attachments/assets/e910e31a-96f2-4237-a257-c2ed69700a3b" />
+
+
 ---
 
 ## Table of Contents
